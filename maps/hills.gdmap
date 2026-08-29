@@ -1,0 +1,22 @@
+# A longer human-play map with progressively sharper obstacles.
+name=hills
+start=2
+finish=78
+point=0,0
+point=7,0
+point=12,2.2
+point=17,0.4
+point=22,0.4
+point=27,3.0
+point=31,3.0
+point=35,0.2
+point=41,0.2
+point=44,1.8
+point=48,0.2
+point=52,0.2
+point=57,4.0
+point=60,4.0
+point=64,0.0
+point=68,-0.8
+point=72,1.0
+point=80,1.0

@@ -1,0 +1,13 @@
+# Gravity Lab map format v1. Coordinates are meters; y points upward.
+name=training
+start=2
+finish=34
+point=0,0
+point=5,0
+point=9,1.2
+point=13,0.2
+point=17,0.2
+point=21,2.0
+point=25,2.0
+point=29,0.0
+point=36,0.0

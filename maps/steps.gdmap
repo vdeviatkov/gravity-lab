@@ -1,0 +1,17 @@
+# Piecewise-linear steps and ramps for curriculum learning.
+name=steps
+start=2
+finish=60
+point=0,0
+point=8,0
+point=10,0.8
+point=16,0.8
+point=18,1.6
+point=24,1.6
+point=27,3.0
+point=31,3.0
+point=35,1.0
+point=39,1.0
+point=44,3.5
+point=48,0.0
+point=62,0.0
