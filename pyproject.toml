@@ -7,7 +7,7 @@ name = "gravity-lab"
 version = "0.1.0"
 description = "Python API for the deterministic Gravity Lab motorcycle environment"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = {text = "GPL-2.0-only"}
 
 [tool.setuptools]
 package-dir = {"" = "python"}

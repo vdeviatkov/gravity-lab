@@ -1,5 +1,9 @@
 # Environment contract
 
+This document describes environment ID `gravity-lab-sandbox-v1`, not the vendored classic game.
+The classic executable currently has no supported step/reset observation API. Do not label sandbox
+training runs as classic-physics runs.
+
 ## Markov decision process
 
 At time `t`, an agent receives state observation `s_t`, selects action `a_t`, and receives reward

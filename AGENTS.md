@@ -9,3 +9,6 @@
 - Tests and training must run headlessly. Do not commit generated checkpoints, videos, or large logs.
 - Do not claim performance without fixed evaluation seeds, full distributions, and recorded metadata.
 - Run CTest and Python unittest before submitting changes.
+- The vendored `classic/` tree is GPL-2.0-only. Preserve upstream authorship and asset notices.
+- Mark modifications to files under `classic/` with the date and summarize them in
+  `classic/GRAVITY_LAB_CHANGES.md`.

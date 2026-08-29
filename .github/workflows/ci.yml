@@ -36,6 +36,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install SDL2
-        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
-      - name: Configure and build desktop
-        run: cmake -S . -B build && cmake --build build --config Release --target gravity_lab_play
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev
+      - name: Build RL sandbox viewer
+        run: cmake -S . -B build && cmake --build build --config Release --target gravity_lab_sandbox
+      - name: Build faithful classic game
+        run: cmake -S classic -B build-classic && cmake --build build-classic --config Release --target GravityDefied
