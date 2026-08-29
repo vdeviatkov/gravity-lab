@@ -6,9 +6,12 @@
 #include "TextRender.h"
 #include "RecordManager.h"
 #include "Micro.h"
+#include "GameCanvas.h"
+#include "GamePhysics.h"
 #include "LevelLoader.h"
 #include "GameMenu.h"
 #include "SettingsStringRender.h"
+#include "TimerOrMotoPartOrMenuElem.h"
 #include "utils/Time.h"
 
 

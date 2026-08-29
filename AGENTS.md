@@ -12,3 +12,7 @@
 - The vendored `classic/` tree is GPL-2.0-only. Preserve upstream authorship and asset notices.
 - Mark modifications to files under `classic/` with the date and summarize them in
   `classic/GRAVITY_LAB_CHANGES.md`.
+- `gravity-lab-classic-v1` must continue to execute the vendored `GamePhysics`; do not substitute
+  the lightweight sandbox physics while retaining the classic environment ID.
+- The upstream engine uses process-global physics and level-loader state. Until that is removed,
+  preserve the one-active-classic-environment guard and use subprocesses for parallel rollouts.

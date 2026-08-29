@@ -1,4 +1,8 @@
 #include "LevelLoader.h"
+#include "GameCanvas.h"
+#include "GameLevel.h"
+#include "GamePhysics.h"
+#include "TimerOrMotoPartOrMenuElem.h"
 #include "utils/FileStream.h"
 #include "utils/EmbedFileStream.h"
 
@@ -42,6 +46,9 @@ LevelLoader::LevelLoader(const std::filesystem::path& mrgFilePath)
 
 LevelLoader::~LevelLoader()
 {
+    // Modified by Gravity Lab contributors, 2026-08-28: the headless API can
+    // create environments repeatedly, so release the level owned by loader.
+    delete gameLevel;
     delete levelFileStream;
 }
 
@@ -112,12 +119,12 @@ void LevelLoader::method_90(int var1)
     field_130 = gameLevel->startPosY << 1;
 }
 
-int LevelLoader::method_91()
+int LevelLoader::method_91() const
 {
     return gameLevel->pointPositions[gameLevel->finishFlagPoint][0] << 1;
 }
 
-int LevelLoader::method_92()
+int LevelLoader::method_92() const
 {
     return gameLevel->pointPositions[gameLevel->startFlagPoint][0] << 1;
 }

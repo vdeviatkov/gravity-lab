@@ -113,7 +113,7 @@ public:
     void enableGenerateInputAI();
     void disableGenerateInputAI();
     int updatePhysics();
-    bool isTrackStarted();
+    bool isTrackStarted() const;
     bool method_38();
     static int getSmthLikeMaxAbs(int xF16, int yF16);
     void setEnableLookAhead(bool value);

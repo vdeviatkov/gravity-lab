@@ -15,11 +15,13 @@ name and branding.
 
 - Faithful classic game with its original ported physics, levels, menus, sprites, HUD, and renderer
 - Separate deterministic piecewise-linear RL sandbox with inspectable lightweight physics
-- Selectable map, integration time step, action repeat (`frame_skip`), episode limit, and seed
+- Selectable built-in/custom classic levels, bike league, action repeat (`frame_skip`), episode
+  limit, and seed
 - Nine discrete actions, including simultaneous throttle/brake and rider lean
-- Fixed 12-number observation vector and explicit reward/termination signals
+- Versioned observations: 28 values from classic fixed-point physics or 12 from the RL sandbox
+- Explicit reward, finish/crash termination, and time-limit truncation signals
 - Native C++ API, shared C ABI, and dependency-free Python wrapper
-- Random and heuristic C++ rollouts plus random and tabular-Q Python examples
+- Random rollouts and tabular Q-learning in both C++20 and Python
 - Optional SDL2 RL-sandbox viewer with arrow/WASD controls
 - C++ and Python determinism/contract tests on macOS, Linux, and Windows
 
@@ -43,9 +45,18 @@ high scores, help, classic levels, and custom `.mrg` packs behave as in the refe
 ./build-classic/GravityDefied path/to/custom-levels.mrg
 ```
 
-It can also be included in the top-level build with
-`-DGRAVITY_LAB_BUILD_CLASSIC=ON`; the resulting executable is under the build tree's `classic/`
-directory.
+For the faithful game's headless learning API, use the integrated build:
+
+```sh
+cmake -S . -B build-classic-rl \
+  -DGRAVITY_LAB_BUILD_CLASSIC=ON \
+  -DGRAVITY_LAB_BUILD_DESKTOP=OFF
+cmake --build build-classic-rl --config Release
+ctest --test-dir build-classic-rl -C Release --output-on-failure
+```
+
+This produces the playable game under `build-classic-rl/classic/` plus the native environment,
+shared Python library, headless runner, and C++ Q-learning executable.
 
 ## Build the RL environment
 
@@ -80,6 +91,38 @@ builds place the executable under `build/Release/`.
 
 ## Train and evaluate
 
+### Faithful classic physics
+
+Build with `GRAVITY_LAB_BUILD_CLASSIC=ON`, then run a Python baseline or trainer:
+
+```sh
+PYTHONPATH=python python3 python/examples/classic_random_agent.py \
+  --group 0 --track 0 --episodes 20 --seed 7
+PYTHONPATH=python python3 python/examples/classic_tabular_q.py \
+  --group 0 --track 0 --episodes 2000 --train-seed 7 \
+  --eval-seed 1000007 --eval-episodes 50 \
+  --checkpoint artifacts/classic_tabular_q.json
+```
+
+The same workflow is available without Python:
+
+```sh
+./build-classic-rl/gravity_lab_classic_headless \
+  --group 0 --track 0 --policy random --episodes 20 --seed 7
+./build-classic-rl/gravity_lab_classic_q \
+  --group 0 --track 0 --episodes 2000 --train-seed 7 \
+  --eval-seed 1000007 --eval-episodes 50 \
+  --checkpoint artifacts/classic_q.tsv
+```
+
+Both trainers save a checkpoint and immediately run exploration-free evaluation. Add
+`--eval-only` to load a checkpoint, or `--level-pack path/to/custom-levels.mrg` to select a custom
+pack. No performance is claimed by the repository; run measured experiments before drawing
+conclusions. See [docs/classic-rl.md](docs/classic-rl.md) for the complete API, observations,
+actions, rewards, native embedding example, and limitations.
+
+### Lightweight sandbox
+
 The headless executable is useful for C++ baselines and automation:
 
 ```sh
@@ -110,31 +153,30 @@ while (!env.done()) {
 }
 ```
 
-See [docs/environment.md](docs/environment.md) for the full Markov decision process contract and
+See [docs/environment.md](docs/environment.md) for the sandbox Markov decision process contract and
 [docs/reproducibility.md](docs/reproducibility.md) before comparing agents.
 
 ## Repository layout
 
 ```text
-apps/                 SDL2 player and headless rollout executable
+apps/                 SDL2 players, headless rollouts, and C++ tabular trainer
 classic/              vendored faithful GPL C++/SDL2 port and original port assets
 include/gravity_lab/  public C++, C, environment, map, and data-type APIs
 src/                  deterministic simulation and C ABI implementation
 maps/                 version-controlled curriculum maps
 python/gravity_lab/   dependency-free ctypes wrapper
-python/examples/      random baseline and tabular Q-learning example
+python/examples/      random baselines and tabular Q-learning examples
 tests/                native and cross-language contract tests
 docs/                 environment semantics and reproducibility rules
 ```
 
 ## Scope
 
-There are currently two physics implementations. `classic/` is the faithful game used for normal
-play and visual reference. `gravity_lab_core` is the deterministic, instrumented RL sandbox. A
-policy trained in the sandbox must not be described as trained on the classic physics, and direct
-policy transfer is not guaranteed. The next integration milestone is a headless adapter around the
-classic fixed-point `GamePhysics`, after which classic and sandbox environment IDs will remain
-explicit so experiment data cannot mix them accidentally.
+There are two physics implementations. `gravity-lab-classic-v1` directly wraps the faithful
+vendored fixed-point `GamePhysics` used for normal play. `gravity-lab-sandbox-v1` is a separate,
+small, inspectable simulation. A policy trained in the sandbox must not be described as trained on
+classic physics, and direct transfer is not guaranteed. The distinct IDs, observations, and
+checkpoint metadata keep their experiment data separate.
 
 The next learning milestone is a measured DQN baseline built outside the environment library,
 followed by replay/target-network ablations. Scores and target performance are deliberately not

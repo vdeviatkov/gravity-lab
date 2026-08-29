@@ -35,9 +35,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Install SDL2
         run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev
       - name: Build RL sandbox viewer
         run: cmake -S . -B build && cmake --build build --config Release --target gravity_lab_sandbox
-      - name: Build faithful classic game
-        run: cmake -S classic -B build-classic && cmake --build build-classic --config Release --target GravityDefied
+      - name: Configure faithful game and RL adapter
+        run: cmake -S . -B build-classic-rl -DGRAVITY_LAB_BUILD_DESKTOP=OFF -DGRAVITY_LAB_BUILD_CLASSIC=ON
+      - name: Build faithful game and RL adapter
+        run: cmake --build build-classic-rl --config Release --target GravityDefied gravity_lab_classic gravity_lab_classic_headless gravity_lab_classic_q gravity_lab_classic_tests
+      - name: Faithful environment C++ tests
+        run: ctest --test-dir build-classic-rl -C Release --output-on-failure -R gravity_lab_classic
+      - name: Faithful environment Python tests
+        run: PYTHONPATH=python python -m unittest tests/python/test_classic_env.py tests/python/test_classic_q_learning.py -v

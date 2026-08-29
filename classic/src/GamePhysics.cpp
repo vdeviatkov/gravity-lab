@@ -1,5 +1,7 @@
 #include "GamePhysics.h"
 
+#include "GameCanvas.h"
+#include "GameLevel.h"
 #include "LevelLoader.h"
 #include "class_10.h"
 #include "MathF16.h"
@@ -492,7 +494,7 @@ int GamePhysics::updatePhysics()
     }
 }
 
-bool GamePhysics::isTrackStarted()
+bool GamePhysics::isTrackStarted() const
 {
     return field_29[1]->motoComponents[index01]->xF16 < levelLoader->method_92();
 }
@@ -869,16 +871,18 @@ int GamePhysics::method_52()
 
 void GamePhysics::method_53()
 {
+    // Modified by Gravity Lab contributors, 2026-08-28: retain the complete
+    // component snapshot for deterministic headless observations. Rendering
+    // previously needed only a subset of these fields.
     // synchronized (field_29) {
     for (int var2 = 0; var2 < 6; ++var2) {
         field_29[var2]->motoComponents[5]->xF16 = field_29[var2]->motoComponents[index01]->xF16;
         field_29[var2]->motoComponents[5]->yF16 = field_29[var2]->motoComponents[index01]->yF16;
         field_29[var2]->motoComponents[5]->angleF16 = field_29[var2]->motoComponents[index01]->angleF16;
+        field_29[var2]->motoComponents[5]->field_382 = field_29[var2]->motoComponents[index01]->field_382;
+        field_29[var2]->motoComponents[5]->field_383 = field_29[var2]->motoComponents[index01]->field_383;
+        field_29[var2]->motoComponents[5]->field_384 = field_29[var2]->motoComponents[index01]->field_384;
     }
-
-    field_29[0]->motoComponents[5]->field_382 = field_29[0]->motoComponents[index01]->field_382;
-    field_29[0]->motoComponents[5]->field_383 = field_29[0]->motoComponents[index01]->field_383;
-    field_29[2]->motoComponents[5]->field_384 = field_29[2]->motoComponents[index01]->field_384;
     // }
 }
 

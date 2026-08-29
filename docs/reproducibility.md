@@ -10,20 +10,23 @@ An experiment configuration is incomplete unless it records:
 - compiler, dependency versions, OS, CPU/GPU model, and accelerator backend;
 - whether deterministic accelerator algorithms were enabled and any known nondeterministic operation.
 
-Environment v1 itself performs deterministic scalar CPU arithmetic and currently consumes no random
-numbers after reset. The seed remains explicit so future stochastic maps can evolve without an API
-break. Bitwise equality is expected for the same binary/platform; small floating-point differences
-may occur across compilers and CPU architectures.
+Both v1 environments currently consume no environment randomness after reset. The sandbox uses
+scalar floating-point arithmetic, so small differences may occur across compilers and CPU
+architectures. The classic adapter executes the original integer fixed-point physics and is tested
+for bitwise-repeatable trajectories in one binary. Seeds remain explicit for API stability and
+future stochastic features.
 
 Training and evaluation seed lists must not overlap. Evaluation disables epsilon exploration and
 reports the distribution over all fixed episodes: mean and median reward, finish rate, crash rate,
 episode length, and progress. Report execution time separately and exclude rendering. Never select
 only successful recordings or the best checkpoint using evaluation seeds.
 
-The tabular example writes JSON with format tag, map, seed, training episode count, hyperparameters,
-and values. Future neural checkpoints should use a versioned metadata JSON plus framework-native
-weights, saved atomically. Loading must reject incompatible observation/action sizes and map or
-environment versions unless an explicit override is recorded.
+The sandbox and classic Python tabular examples write atomic, version-tagged JSON checkpoints. The
+classic C++ example writes a deterministic, version-tagged text checkpoint. They intentionally use
+different format tags; checkpoint conversion is not implied. Future neural checkpoints should use
+a versioned metadata JSON plus framework-native weights, saved atomically. Loading must reject
+incompatible observation/action sizes and map or environment versions unless an explicit override
+is recorded.
 
 The headless runner emits CSV with the versioned semantic columns `map`, `episode`, `seed`, `reward`,
 `steps`, `progress`, `finished`, `crashed`, and `truncated`. Experiment tooling should add its full

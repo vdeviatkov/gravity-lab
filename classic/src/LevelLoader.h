@@ -1,16 +1,18 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <vector>
 #include <string>
 #include <fstream>
 #include <stdexcept>
 
-#include "GamePhysics.h"
-#include "GameCanvas.h"
-#include "GameLevel.h"
-#include "TimerOrMotoPartOrMenuElem.h"
-#include "utils/FileStream.h"
+// Modified by Gravity Lab contributors, 2026-08-28: keep renderer and physics
+// dependencies out of this public data-loader header for headless consumers.
+class FileStream;
+class GameCanvas;
+class GameLevel;
+class TimerOrMotoPartOrMenuElem;
 
 class LevelLoader {
 private:
@@ -56,8 +58,8 @@ public:
     void method_89(int var1, int var2);
 
     void method_90(int var1);
-    int method_91();
-    int method_92();
+    int method_91() const;
+    int method_92() const;
     int method_93();
     int method_94();
     int method_95(int var1);

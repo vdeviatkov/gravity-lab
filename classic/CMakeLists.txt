@@ -18,11 +18,19 @@ pkg_search_module(SDL2 REQUIRED IMPORTED_TARGET sdl2)
 pkg_search_module(SDL2_TTF REQUIRED IMPORTED_TARGET SDL2_ttf)
 pkg_search_module(SDL2_IMAGE REQUIRED IMPORTED_TARGET SDL2_image)
 
+# Modified by Gravity Lab contributors, 2026-08-28: Homebrew's sdl2.pc may
+# advertise SDL2main even though recent sdl2-compat bottles do not ship it.
+set(CLASSIC_SDL2_LIBRARIES ${SDL2_LIBRARIES})
+if(APPLE)
+    list(REMOVE_ITEM CLASSIC_SDL2_LIBRARIES SDL2main)
+endif()
+
 # Create a sources variable with a link to all cpp files to compile
-set(SOURCES
+# Modified by Gravity Lab contributors, 2026-08-28: expose the port as a
+# reusable engine library so a headless RL adapter can use the exact physics.
+set(ENGINE_SOURCES
     src/utils/Time.cpp
     src/utils/EmbedFileStream.cpp
-    src/main.cpp
     src/MathF16.cpp
     src/GameCanvas.cpp
     src/GamePhysics.cpp
@@ -71,20 +79,24 @@ cmrc_add_resource_library(Assets
 # Compile resources when building for Windows.
 if(WIN32)
     enable_language(RC)
-    list(APPEND SOURCES winres/res.rc)
 endif()
 
-add_executable(GravityDefied ${SOURCES})
+add_library(GravityDefiedEngine STATIC ${ENGINE_SOURCES})
+add_executable(GravityDefied src/main.cpp)
+if(WIN32)
+    target_sources(GravityDefied PRIVATE winres/res.rc)
+endif()
 
-target_compile_features(GravityDefied PRIVATE cxx_std_17)
-target_compile_options(GravityDefied PRIVATE -Wall -Wextra)
+target_compile_features(GravityDefiedEngine PUBLIC cxx_std_17)
+target_compile_options(GravityDefiedEngine PRIVATE -Wall -Wextra)
 
-target_include_directories(GravityDefied PRIVATE
+target_include_directories(GravityDefiedEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(GravityDefiedEngine PUBLIC
                            ${SDL2_INCLUDE_DIRS}
                            ${SDL2_TTF_INCLUDE_DIRS}
                            ${SDL2_IMAGE_INCLUDE_DIRS})
 
-target_link_directories(GravityDefied PRIVATE
+target_link_directories(GravityDefiedEngine PUBLIC
                         ${SDL2_LIBRARY_DIRS}
                         ${SDL2_TTF_LIBRARY_DIRS}
                         ${SDL2_IMAGE_LIBRARY_DIRS})
@@ -93,18 +105,19 @@ set_target_properties(GravityDefied PROPERTIES LINK_FLAGS_RELEASE -s)
 
 if(WIN32)
     target_link_options(GravityDefied PRIVATE -static -mwindows)
-    target_link_libraries(GravityDefied 
+    target_link_libraries(GravityDefiedEngine PRIVATE
                          ${SDL2_STATIC_LIBRARIES} 
                          ${SDL2_TTF_STATIC_LIBRARIES}
                          ${SDL2_IMAGE_STATIC_LIBRARIES} 
                          Assets::Assets)
 else()
-    target_link_libraries(GravityDefied 
-                          ${SDL2_LIBRARIES}
+    target_link_libraries(GravityDefiedEngine PRIVATE
+                          ${CLASSIC_SDL2_LIBRARIES}
                           ${SDL2_TTF_LIBRARIES}
                           ${SDL2_IMAGE_LIBRARIES}
                           Assets::Assets)
 endif()
+target_link_libraries(GravityDefied PRIVATE GravityDefiedEngine)
 
 # Copy assets to the build directory
 file(COPY assets/levels.mrg DESTINATION ${CMAKE_BINARY_DIR})

@@ -1,8 +1,8 @@
 # Environment contract
 
-This document describes environment ID `gravity-lab-sandbox-v1`, not the vendored classic game.
-The classic executable currently has no supported step/reset observation API. Do not label sandbox
-training runs as classic-physics runs.
+This document describes environment ID `gravity-lab-sandbox-v1`. The faithful game now has its own
+supported API under environment ID `gravity-lab-classic-v1`; see [classic-rl.md](classic-rl.md).
+Do not combine results or checkpoints from the two environments.
 
 ## Markov decision process
 

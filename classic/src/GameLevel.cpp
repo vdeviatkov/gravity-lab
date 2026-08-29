@@ -9,6 +9,10 @@ GameLevel::GameLevel()
     init();
 }
 
+// Modified by Gravity Lab contributors, 2026-08-28: upstream declared this
+// destructor without defining it; the headless loader now releases its level.
+GameLevel::~GameLevel() = default;
+
 void GameLevel::init()
 {
     startPosX = 0;
