@@ -99,8 +99,16 @@ void Canvas::pressedEsc()
 {
     for (const auto& command : currentCommands) {
         if (command->type == Command::Type::BACK || currentCommands.size() == 1) {
-            commandListener->commandAction(command, this);
+            if (commandListener != nullptr) commandListener->commandAction(command, this);
             return;
         }
     }
+    // Modified by Gravity Lab contributors, 2026-08-28: a standalone policy
+    // viewer has no menu commands, so Escape closes its window cleanly.
+    impl->requestClose();
+}
+
+bool Canvas::isOpen() const noexcept
+{
+    return impl->isOpen();
 }

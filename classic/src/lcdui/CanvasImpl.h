@@ -12,8 +12,9 @@ class CanvasImpl {
 private:
     Canvas* canvas;
 
-    SDL_Window* window;
-    SDL_Renderer* renderer;
+    SDL_Window* window = nullptr;
+    SDL_Renderer* renderer = nullptr;
+    bool open = true;
 
     const int width = 640;
     const int height = 480;
@@ -31,4 +32,6 @@ public:
     SDL_Renderer* getRenderer();
     void processEvents();
     void setWindowTitle(const std::string& title);
+    bool isOpen() const noexcept;
+    void requestClose() noexcept;
 };

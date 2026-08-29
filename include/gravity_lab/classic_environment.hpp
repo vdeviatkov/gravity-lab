@@ -9,6 +9,8 @@
 
 namespace gravity_lab::classic {
 
+class Renderer;
+
 constexpr std::size_t kObservationSize = 28;
 constexpr std::int32_t kActionCount = 9;
 using Observation = std::array<double, kObservationSize>;
@@ -72,6 +74,9 @@ public:
     [[nodiscard]] std::uint32_t track_count(std::uint32_t level_group) const;
 
 private:
+    friend class Renderer;
+    [[nodiscard]] void* native_physics_handle() noexcept;
+
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };

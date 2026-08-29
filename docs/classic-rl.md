@@ -28,6 +28,7 @@ The important outputs are:
 - `classic/GravityDefied`: human-playable game;
 - `gravity_lab_classic_headless`: random and throttle baselines;
 - `gravity_lab_classic_q`: standard-library-only C++ tabular Q-learning;
+- `gravity_lab_classic_viewer`: faithful graphical playback of an exported dense Q-policy;
 - `libgravity_lab_classic`: stable C ABI used by Python and other languages.
 
 ## Environment contract
@@ -155,6 +156,36 @@ Q(s,a) <- Q(s,a) + alpha * [r + gamma * max_a' Q(s',a') - Q(s,a)]
 The `gamma * max Q` term is zero for a terminal finish/crash. The examples use a separately seeded
 epsilon-greedy policy during training and a deterministic greedy policy during evaluation.
 
+## External neural training and playback
+
+Keep DQN training in a separate repository and use `ClassicGravityEnv` as its environment. The
+environment returns the same 28-value observation and accepts the same nine actions as the native
+API. A typical external loop should maintain independently seeded initialization, exploration,
+replay sampling, environment, and evaluation RNGs; keep replay and target-network updates out of
+the environment; and evaluate with epsilon exactly zero on fixed seeds that were not used for
+training or checkpoint selection.
+
+After evaluation, export a sequential dense online Q-network as
+`gravity-lab-dense-q-policy-v1`. The format includes the environment ID, elementwise input
+normalization, activations, biases, and output-major weights. Python can create it directly from
+PyTorch `Linear` tensors, and C++ loads it without PyTorch, Python, NumPy, or an RL framework.
+
+```sh
+./build-classic-rl/gravity_lab_classic_viewer \
+  --policy artifacts/classic_policy.gdp --validate-only
+
+./build-classic-rl/gravity_lab_classic_viewer \
+  --policy artifacts/classic_policy.gdp \
+  --group 0 --track 0 --league 0 --frame-skip 2 \
+  --max-steps 2000 --episodes 3 --seed 2000007
+```
+
+The viewer performs deterministic greedy argmax and renders the original track, bike sprites, HUD,
+and fixed-point `GamePhysics` state used by the headless environment. It never creates a second
+simulation. Escape or the window close button stops playback. See
+[policy-format.md](policy-format.md) for the full format, Python export example, model limitations,
+and metadata requirements.
+
 ## Reproducibility and limitations
 
 - Keep training and evaluation seeds disjoint. The classic v1 environment itself is deterministic;
@@ -164,11 +195,14 @@ epsilon-greedy policy during training and a deterministic greedy policy during e
 - Python checkpoints use `gravity-lab-classic-tabular-q-json-v1`; C++ checkpoints use
   `gravity-lab-classic-tabular-q-tsv-v1`. Both save through a temporary file. They are not directly
   interchangeable.
+- Dense neural inference uses the cross-language `gravity-lab-dense-q-policy-v1` format. It is a
+  deployment artifact, not a resumable training checkpoint; keep optimizer/replay state and a
+  complete experiment sidecar in the external training repository.
 - The upstream engine stores important level and bike parameters in process-global static state.
   Therefore v1 permits only one active classic environment per process. Use multiple worker
   processes—not threads or multiple environment objects—for parallel collection.
 - Rendering is optional and excluded from training/evaluation timing. Do not commit videos, large
   logs, or generated checkpoints; `artifacts/` is ignored.
 - The included tabular learner is a tested educational baseline, not a claimed performance result.
-  A DQN, replay buffer, target network, neural checkpoint format, and measured cross-implementation
-  benchmark remain separate future milestones rather than unverified code in the core API.
+  DQN training, replay buffers, target networks, and measured benchmarks remain external experiment
+  work; Gravity Lab deliberately provides only the tested environment and inference boundary.

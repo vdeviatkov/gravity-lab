@@ -14,7 +14,7 @@ class Canvas : public Displayable {
 private:
     std::unique_ptr<CanvasImpl> impl;
     std::unique_ptr<Graphics> graphics; // IMPROVE this is probably not the best place for graphics
-    CommandListener* commandListener;
+    CommandListener* commandListener = nullptr;
 
     std::unordered_set<Command*, Command::HashFunction, Command::EqualFunction> currentCommands;
 
@@ -43,6 +43,7 @@ public:
     void publicKeyPressed(int keyCode);
     void publicKeyReleased(int keyCode);
     void pressedEsc();
+    bool isOpen() const noexcept;
     virtual void paint(Graphics* g) = 0;
     virtual void keyPressed(int keyCode) = 0;
     virtual void keyReleased(int keyCode) = 0;

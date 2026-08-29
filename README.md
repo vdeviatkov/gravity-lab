@@ -22,6 +22,8 @@ name and branding.
 - Explicit reward, finish/crash termination, and time-limit truncation signals
 - Native C++ API, shared C ABI, and dependency-free Python wrapper
 - Random rollouts and tabular Q-learning in both C++20 and Python
+- Versioned, framework-neutral dense Q-policy export with matching Python/C++ inference
+- Faithful graphical policy viewer using the same physics state as headless training
 - Optional SDL2 RL-sandbox viewer with arrow/WASD controls
 - C++ and Python determinism/contract tests on macOS, Linux, and Windows
 
@@ -56,7 +58,7 @@ ctest --test-dir build-classic-rl -C Release --output-on-failure
 ```
 
 This produces the playable game under `build-classic-rl/classic/` plus the native environment,
-shared Python library, headless runner, and C++ Q-learning executable.
+shared Python library, headless runner, C++ Q-learning executable, and learned-policy viewer.
 
 ## Build the RL environment
 
@@ -121,6 +123,21 @@ pack. No performance is claimed by the repository; run measured experiments befo
 conclusions. See [docs/classic-rl.md](docs/classic-rl.md) for the complete API, observations,
 actions, rewards, native embedding example, and limitations.
 
+Train a neural network in a separate experiment repository against `ClassicGravityEnv`, then
+export its dense layers to the portable policy format. The exported policy can be validated and
+played by C++ without Python or a neural-network framework:
+
+```sh
+./build-classic-rl/gravity_lab_classic_viewer \
+  --policy artifacts/classic_policy.gdp --validate-only
+./build-classic-rl/gravity_lab_classic_viewer \
+  --policy artifacts/classic_policy.gdp \
+  --group 0 --track 0 --frame-skip 2 --episodes 3 --seed 2000007
+```
+
+See [docs/policy-format.md](docs/policy-format.md) for the PyTorch-compatible export example,
+format contract, input normalization, and required reproducibility sidecar.
+
 ### Lightweight sandbox
 
 The headless executable is useful for C++ baselines and automation:
@@ -159,12 +176,12 @@ See [docs/environment.md](docs/environment.md) for the sandbox Markov decision p
 ## Repository layout
 
 ```text
-apps/                 SDL2 players, headless rollouts, and C++ tabular trainer
+apps/                 SDL2 players, learned-policy viewer, rollouts, and C++ tabular trainer
 classic/              vendored faithful GPL C++/SDL2 port and original port assets
 include/gravity_lab/  public C++, C, environment, map, and data-type APIs
 src/                  deterministic simulation and C ABI implementation
 maps/                 version-controlled curriculum maps
-python/gravity_lab/   dependency-free ctypes wrapper
+python/gravity_lab/   dependency-free ctypes wrapper and portable dense-policy exporter
 python/examples/      random baselines and tabular Q-learning examples
 tests/                native and cross-language contract tests
 docs/                 environment semantics and reproducibility rules
@@ -178,9 +195,10 @@ small, inspectable simulation. A policy trained in the sandbox must not be descr
 classic physics, and direct transfer is not guaranteed. The distinct IDs, observations, and
 checkpoint metadata keep their experiment data separate.
 
-The next learning milestone is a measured DQN baseline built outside the environment library,
-followed by replay/target-network ablations. Scores and target performance are deliberately not
-claimed until reproducible experiment runs are checked in as small metadata files.
+Neural training, replay buffers, target networks, and experiment tracking belong in a separate
+training repository. This repository supplies the stable environment and portable deployment
+boundary. Scores and target performance are deliberately not claimed until reproducible experiment
+runs are published with their configurations and metadata.
 
 ## License
 

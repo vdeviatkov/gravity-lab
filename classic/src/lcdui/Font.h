@@ -4,8 +4,6 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 
-#include <cmrc/cmrc.hpp>
-
 class Font {
 public:
     enum FontSize {
@@ -35,8 +33,7 @@ public:
     int substringWidth(const std::string& string, int offset, int len);
 
 private:
-    static inline SDL_RWops* ttfRwOps = nullptr;
-    TTF_Font* ttfFont;
+    TTF_Font* ttfFont = nullptr;
     int height;
 
     static int getRealFontSize(FontSize size);

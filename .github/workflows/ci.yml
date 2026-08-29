@@ -45,8 +45,8 @@ jobs:
       - name: Configure faithful game and RL adapter
         run: cmake -S . -B build-classic-rl -DGRAVITY_LAB_BUILD_DESKTOP=OFF -DGRAVITY_LAB_BUILD_CLASSIC=ON
       - name: Build faithful game and RL adapter
-        run: cmake --build build-classic-rl --config Release --target GravityDefied gravity_lab_classic gravity_lab_classic_headless gravity_lab_classic_q gravity_lab_classic_tests
+        run: cmake --build build-classic-rl --config Release --target GravityDefied gravity_lab_classic gravity_lab_classic_headless gravity_lab_classic_q gravity_lab_classic_tests gravity_lab_policy_tests gravity_lab_classic_viewer
       - name: Faithful environment C++ tests
         run: ctest --test-dir build-classic-rl -C Release --output-on-failure -R gravity_lab_classic
       - name: Faithful environment Python tests
-        run: PYTHONPATH=python python -m unittest tests/python/test_classic_env.py tests/python/test_classic_q_learning.py -v
+        run: PYTHONPATH=python python -m unittest tests/python/test_classic_env.py tests/python/test_classic_q_learning.py tests/python/test_dense_policy.py -v

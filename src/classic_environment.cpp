@@ -169,5 +169,6 @@ std::uint32_t Environment::track_count(std::uint32_t level_group) const {
     if (level_group >= impl_->loader.levelNames.size()) throw std::out_of_range("level_group must be in [0, 2]");
     return static_cast<std::uint32_t>(impl_->loader.levelNames[level_group].size());
 }
+void* Environment::native_physics_handle() noexcept { return &impl_->physics; }
 
 }  // namespace gravity_lab::classic

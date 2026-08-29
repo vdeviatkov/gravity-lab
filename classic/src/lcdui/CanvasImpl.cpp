@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include "Canvas.h"
+#include "FontStorage.h"
 
 CanvasImpl::CanvasImpl(Canvas* canvas)
 {
@@ -39,6 +40,11 @@ CanvasImpl::CanvasImpl(Canvas* canvas)
         window, -1, SDL_RENDERER_ACCELERATED);
 
     if (!renderer) {
+        // Modified by Gravity Lab contributors, 2026-08-28: allow the policy
+        // viewer and CI smoke test to use SDL's software/dummy renderer.
+        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+    }
+    if (!renderer) {
         throw std::runtime_error(SDL_GetError());
     }
 
@@ -48,6 +54,9 @@ CanvasImpl::CanvasImpl(Canvas* canvas)
 
 CanvasImpl::~CanvasImpl()
 {
+    // Modified by Gravity Lab contributors, 2026-08-28: release cached fonts
+    // while SDL_ttf is still initialized for embedded viewer lifecycles.
+    FontStorage::clearAll();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
@@ -82,7 +91,9 @@ void CanvasImpl::processEvents()
     while (SDL_PollEvent(&e) != 0) {
         switch (e.type) {
         case SDL_QUIT:
-            exit(0); // IMPROVE This is a super dumb way to finish the game, but it works
+            // Modified by Gravity Lab contributors, 2026-08-28: return control
+            // to an embedding application instead of terminating its process.
+            open = false;
             break;
         case SDL_KEYDOWN: {
             int keyCode = convertKeyCharToKeyCode(e.key.keysym.sym);
@@ -132,4 +143,14 @@ int CanvasImpl::convertKeyCharToKeyCode(SDL_Keycode keyCode)
 void CanvasImpl::setWindowTitle(const std::string& title)
 {
     SDL_SetWindowTitle(window, title.c_str());
+}
+
+bool CanvasImpl::isOpen() const noexcept
+{
+    return open;
+}
+
+void CanvasImpl::requestClose() noexcept
+{
+    open = false;
 }

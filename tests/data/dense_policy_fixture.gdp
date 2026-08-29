@@ -1,0 +1,10 @@
+gravity-lab-dense-q-policy-v1
+environment "fixture-v1"
+input_size 3
+input_scale 2 1 0.5
+input_bias 0 1 -1
+layers 1
+layer 3 2 linear
+bias 0.5 -0.5
+weights 1 2 3 -1 0.5 2
+end

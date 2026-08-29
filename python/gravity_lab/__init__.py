@@ -10,6 +10,7 @@ from .classic_env import (
     ClassicStepResult,
     classic_library_available,
 )
+from .dense_policy import DenseLayer, DenseQPolicy, POLICY_FORMAT
 
 __all__ = [
     "ACTION_COUNT",
@@ -25,4 +26,7 @@ __all__ = [
     "ClassicGravityEnv",
     "ClassicStepResult",
     "classic_library_available",
+    "DenseLayer",
+    "DenseQPolicy",
+    "POLICY_FORMAT",
 ]

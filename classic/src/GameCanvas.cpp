@@ -224,6 +224,9 @@ void GameCanvas::drawHelmet(int x, int y, int angleF16)
 
 void GameCanvas::drawTime(int64_t time10Ms)
 {
+    // Modified by Gravity Lab contributors, 2026-08-28: the standalone
+    // policy viewer does not render a menu first, so select the HUD font here.
+    graphics->setFont(font);
     int seconds = (int)(time10Ms / 100L);
     int time10MsPart = (int)(time10Ms % 100L);
     if (timeInSeconds != seconds || stringWithTime.empty()) {

@@ -21,6 +21,15 @@ Gravity Lab modifications:
   environment creation does not leak one level instance each time, and defined the previously
   declaration-only `GameLevel` destructor needed for that cleanup.
 - 2026-08-28: ignored Homebrew's stale SDL2main pkg-config entry on macOS.
+- 2026-08-28: added an optional learned-policy renderer adapter over the existing physics state;
+  SDL window close/Escape now return control to the embedding application, and software rendering
+  is used when an accelerated renderer is unavailable.
+- 2026-08-28: moved the embedded-resource include from the public font header to its implementation
+  so external renderer adapters do not require generated private headers.
+- 2026-08-28: made the time HUD select its own font so direct game rendering does not depend on a
+  menu having been rendered first.
+- 2026-08-28: gave each embedded font its own SDL stream and cleared the font cache before SDL_ttf
+  shutdown, fixing repeatable renderer teardown for policy playback and tests.
 
 The classic executable remains the faithful human-play/reference implementation. The top-level
 `gravity_lab_classic_core` adapter now drives the same fixed-point `GamePhysics` and built-in level
