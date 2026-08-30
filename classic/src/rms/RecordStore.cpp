@@ -7,7 +7,7 @@
 #include <numeric>
 #include <cstring>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <libgen.h>
 #else
 #include <unistd.h>
@@ -124,7 +124,7 @@ void RecordStore::log(std::string s)
 
 void RecordStore::setRecordStoreDir([[maybe_unused]] const char* progName)
 {
-#ifdef WIN32
+#ifdef _WIN32
     const char* base = dirname(strdup(progName));
     recordStoreDir = std::filesystem::path(base) / "recordStore";
 #else
