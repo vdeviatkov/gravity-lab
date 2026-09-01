@@ -2,6 +2,7 @@
 #include "gravity_lab/classic_renderer.hpp"
 #include "gravity_lab/dense_policy.hpp"
 
+#include <algorithm>
 #include <charconv>
 #include <chrono>
 #include <cmath>
@@ -85,15 +86,27 @@ void validate(const gravity_lab::DenseQPolicy& policy) {
     if (policy.environment_id() != "gravity-lab-classic-v1") {
         throw std::runtime_error("policy environment must be gravity-lab-classic-v1");
     }
-    // A policy trained before the obstacle-ray sensor was added declares kBaseObservationSize
-    // (28) observations, a compatible prefix of the current kObservationSize (36) vector.
-    if (policy.observation_size() != gravity_lab::classic::kBaseObservationSize &&
-        policy.observation_size() != gravity_lab::classic::kObservationSize) {
+    // A policy trained before the obstacle-ray sensor (or before acceleration) was added
+    // declares a smaller observation_size; every prefix length in
+    // [kBaseObservationSize, kObservationSize] is a compatible, unchanged prefix of the current
+    // vector (see classic_environment.hpp).
+    if (policy.observation_size() < gravity_lab::classic::kBaseObservationSize ||
+        policy.observation_size() > gravity_lab::classic::kObservationSize) {
         throw std::runtime_error("policy observation dimension does not match classic-v1");
     }
     if (policy.action_count() != static_cast<std::size_t>(gravity_lab::classic::kActionCount)) {
         throw std::runtime_error("policy action dimension does not match classic-v1");
     }
+}
+
+// The number of obstacle rays to compute so a policy's own observation region is populated with
+// real values: derived from its declared observation_size (see classic_environment.hpp for the
+// region layout), clamped to a valid ray count regardless of whether the policy uses any rays.
+std::uint32_t obstacle_ray_count_for(const gravity_lab::DenseQPolicy& policy) {
+    const auto base = gravity_lab::classic::kBaseObservationSize;
+    const auto max_rays = gravity_lab::classic::kMaxObstacleRayCount;
+    const std::size_t requested = policy.observation_size() > base ? policy.observation_size() - base : 0;
+    return static_cast<std::uint32_t>(std::clamp<std::size_t>(requested, 1, max_rays));
 }
 
 class FramePacer {
@@ -132,7 +145,9 @@ int main(int argc, char** argv) {
             return 0;
         }
 
-        gravity_lab::classic::Environment environment(options.config, options.level_pack);
+        auto config = options.config;
+        config.obstacle_ray_count = obstacle_ray_count_for(policy);
+        gravity_lab::classic::Environment environment(config, options.level_pack);
         gravity_lab::classic::Renderer renderer(
             environment, "Gravity Lab - " + environment.track_name() + " - learned policy");
         FramePacer pacer(options.fps);

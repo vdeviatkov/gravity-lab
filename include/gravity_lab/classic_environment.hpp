@@ -11,15 +11,34 @@ namespace gravity_lab::classic {
 
 class Renderer;
 
-// Indices [0, kBaseObservationSize) are the original bike/track state (progress, league,
-// per-component position/velocity relative to the bike's center body). Indices
-// [kBaseObservationSize, kObservationSize) are an obstacle-distance sensor: kObstacleRayCount
-// rays are cast from the bike's center, evenly spaced by full turns around it, and each entry is
-// the distance (in [0, 1], where 1.0 means "no track segment within range") to the nearest
-// bounded track polyline segment that ray intersects. See Environment::Impl::make_observation.
+// The observation is laid out in fixed regions so that a model trained against a smaller region
+// set is always reading an exact, unchanged prefix of what a model trained against more regions
+// reads -- adding a region (or growing one) never changes the meaning of any existing index.
+//
+//   [0, kBaseObservationSize)                                  bike/track state: progress,
+//       league, per-component position/velocity relative to the bike's center body.
+//   [kBaseObservationSize, kBaseObservationSize + Config::obstacle_ray_count)
+//                                                               obstacle-distance sensor: that
+//       many rays cast from the bike's center, evenly spaced by full turns around it (ray count
+//       changes the angle of every ray, but ray 0 always points along the direction of
+//       increasing progress); each entry is the distance (in [0, 1], 1.0 = "nothing in range")
+//       to the nearest bounded track polyline segment that ray intersects. Ray count is
+//       per-environment (Config::obstacle_ray_count), not a fixed constant, so different trained
+//       policies each keep their own ray count and angles exactly. Indices in
+//       [kBaseObservationSize + Config::obstacle_ray_count, kObstacleRegionEnd) are left at zero
+//       for a given environment.
+//   [kObstacleRegionEnd, kObservationSize)                     per-component acceleration: the
+//       same 6 physics points as the base region, x/y acceleration each, always computed
+//       regardless of obstacle_ray_count.
+//
+// See Environment::Impl::make_observation.
 constexpr std::size_t kBaseObservationSize = 28;
-constexpr std::size_t kObstacleRayCount = 8;
-constexpr std::size_t kObservationSize = kBaseObservationSize + kObstacleRayCount;
+constexpr std::size_t kDefaultObstacleRayCount = 8;
+constexpr std::size_t kMaxObstacleRayCount = 32;
+constexpr std::size_t kObstacleRegionEnd = kBaseObservationSize + kMaxObstacleRayCount;
+constexpr std::size_t kPhysicsPointCount = 6;
+constexpr std::size_t kAccelerationSize = kPhysicsPointCount * 2;
+constexpr std::size_t kObservationSize = kObstacleRegionEnd + kAccelerationSize;
 constexpr std::int32_t kActionCount = 9;
 using Observation = std::array<double, kObservationSize>;
 
@@ -42,6 +61,8 @@ struct Config {
     std::uint32_t frame_skip{2};
     std::uint32_t max_episode_steps{5'000};
     std::uint64_t seed{1};
+    // Number of obstacle-sensor rays this environment computes; must be in [1, kMaxObstacleRayCount].
+    std::uint32_t obstacle_ray_count{static_cast<std::uint32_t>(kDefaultObstacleRayCount)};
 };
 
 struct StepResult {

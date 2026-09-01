@@ -7,7 +7,7 @@ import platform
 from dataclasses import dataclass
 from pathlib import Path
 
-CLASSIC_OBSERVATION_SIZE = 36
+CLASSIC_OBSERVATION_SIZE = 72
 CLASSIC_ACTION_COUNT = 9
 
 
@@ -31,6 +31,7 @@ class ClassicConfig:
     frame_skip: int = 2
     max_episode_steps: int = 5_000
     seed: int = 1
+    obstacle_ray_count: int = 8
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,7 @@ class _CClassicConfig(ctypes.Structure):
         ("frame_skip", ctypes.c_uint32),
         ("max_episode_steps", ctypes.c_uint32),
         ("seed", ctypes.c_uint64),
+        ("obstacle_ray_count", ctypes.c_uint32),
     ]
 
 
@@ -141,6 +143,8 @@ class ClassicGravityEnv:
             raise ValueError("max_episode_steps must be positive")
         if not 0 <= config.seed < 2**64:
             raise ValueError("seed must be an unsigned 64-bit integer")
+        if not 1 <= config.obstacle_ray_count <= 32:
+            raise ValueError("obstacle_ray_count must be in [1, 32]")
         self._library = _load_library()
         path = None if level_pack is None else os.fsencode(Path(level_pack).resolve())
         self._handle = self._library.gdc_create(
@@ -152,6 +156,7 @@ class ClassicGravityEnv:
                 config.frame_skip,
                 config.max_episode_steps,
                 config.seed,
+                config.obstacle_ray_count,
             ),
         )
         if not self._handle:

@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 
-enum { GDC_OBSERVATION_SIZE = 36, GDC_ACTION_COUNT = 9 };
+enum { GDC_OBSERVATION_SIZE = 72, GDC_ACTION_COUNT = 9 };
 
 typedef struct gdc_env gdc_env;
 
@@ -27,6 +27,7 @@ typedef struct gdc_config {
     uint32_t frame_skip;
     uint32_t max_episode_steps;
     uint64_t seed;
+    uint32_t obstacle_ray_count;
 } gdc_config;
 
 typedef struct gdc_step_result {

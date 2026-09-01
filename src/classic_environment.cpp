@@ -100,6 +100,9 @@ struct Environment::Impl {
         if (config.track >= loader.levelNames[config.level_group].size()) {
             throw std::invalid_argument("track index is outside the selected level group");
         }
+        if (config.obstacle_ray_count == 0 || config.obstacle_ray_count > kMaxObstacleRayCount) {
+            throw std::invalid_argument("obstacle_ray_count must be in [1, kMaxObstacleRayCount]");
+        }
         physics.setMode(1);
         reset(config.seed);
     }
@@ -130,11 +133,20 @@ struct Environment::Impl {
         const int current_segment = locate_segment(level, origin.x);
         const int begin = std::max(0, current_segment - kObstacleSearchRadius);
         const int end = std::min(segment_count, current_segment + kObstacleSearchRadius + 1);
-        for (std::size_t ray = 0; ray < kObstacleRayCount; ++ray) {
-            const double angle = kTwoPi * static_cast<double>(ray) / static_cast<double>(kObstacleRayCount);
+        for (std::size_t ray = 0; ray < config.obstacle_ray_count; ++ray) {
+            const double angle = kTwoPi * static_cast<double>(ray) / static_cast<double>(config.obstacle_ray_count);
             const Vec2 direction{std::cos(angle), std::sin(angle)};
             const double distance = cast_obstacle_ray(origin, direction, level, begin, end);
             result[kBaseObservationSize + ray] = distance / kObstacleMaxRange;
+        }
+
+        // Acceleration region: always computed, independent of obstacle_ray_count, so it lands
+        // at the same fixed offset (kObstacleRegionEnd) regardless of ray count.
+        for (std::size_t i = 0; i < kPhysicsPointCount; ++i) {
+            const auto* component = physics.field_29[i]->motoComponents[5].get();
+            const std::size_t offset = kObstacleRegionEnd + i * 2;
+            result[offset] = component->field_385 / (kFixed * 20.0);
+            result[offset + 1] = component->field_386 / (kFixed * 20.0);
         }
         return result;
     }

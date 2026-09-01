@@ -46,14 +46,15 @@ extern "C" {
 gdc_config gdc_default_config(void) {
     const gravity_lab::classic::Config config;
     return {config.level_group, config.track, config.league, config.frame_skip,
-            config.max_episode_steps, config.seed};
+            config.max_episode_steps, config.seed, config.obstacle_ray_count};
 }
 
 gdc_env* gdc_create(const char* level_pack_path, gdc_config config) {
     gdc_env* result = nullptr;
     guard([&] {
         const gravity_lab::classic::Config native{config.level_group, config.track, config.league,
-                                                   config.frame_skip, config.max_episode_steps, config.seed};
+                                                   config.frame_skip, config.max_episode_steps, config.seed,
+                                                   config.obstacle_ray_count};
         const std::filesystem::path path = level_pack_path ? level_pack_path : "";
         result = new gdc_env(native, path);
     });
