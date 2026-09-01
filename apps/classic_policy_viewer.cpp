@@ -85,7 +85,10 @@ void validate(const gravity_lab::DenseQPolicy& policy) {
     if (policy.environment_id() != "gravity-lab-classic-v1") {
         throw std::runtime_error("policy environment must be gravity-lab-classic-v1");
     }
-    if (policy.observation_size() != gravity_lab::classic::kObservationSize) {
+    // A policy trained before the obstacle-ray sensor was added declares kBaseObservationSize
+    // (28) observations, a compatible prefix of the current kObservationSize (36) vector.
+    if (policy.observation_size() != gravity_lab::classic::kBaseObservationSize &&
+        policy.observation_size() != gravity_lab::classic::kObservationSize) {
         throw std::runtime_error("policy observation dimension does not match classic-v1");
     }
     if (policy.action_count() != static_cast<std::size_t>(gravity_lab::classic::kActionCount)) {
@@ -141,7 +144,8 @@ int main(int argc, char** argv) {
             renderer.show_message(environment.track_name(), 1'000);
             renderer.render_frame(elapsed_milliseconds);
             while (!environment.done() && renderer.open()) {
-                const auto action = policy.action(observation);
+                const auto action = policy.action(
+                    std::span<const double>(observation.data(), policy.observation_size()));
                 result = environment.step(static_cast<gravity_lab::classic::Action>(action));
                 observation = result.observation;
                 total_reward += result.reward;
