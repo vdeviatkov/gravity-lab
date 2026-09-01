@@ -53,8 +53,8 @@ from gravity_lab import DenseLayer, DenseQPolicy
 
 policy = DenseQPolicy(
     environment_id="gravity-lab-classic-v1",
-    input_scale=[1.0] * 28,
-    input_bias=[0.0] * 28,
+    input_scale=[1.0] * 36,
+    input_bias=[0.0] * 36,
     layers=[
         DenseLayer.from_values(model.fc1.weight, model.fc1.bias, "relu"),
         DenseLayer.from_values(model.fc2.weight, model.fc2.bias, "relu"),
@@ -84,7 +84,7 @@ Then render exploration-free episodes on the exact classic physics:
   --max-steps 2000 --episodes 3 --seed 2000007
 ```
 
-The policy must identify `gravity-lab-classic-v1`, accept 28 observations, and produce nine
+The policy must identify `gravity-lab-classic-v1`, accept 36 observations, and produce nine
 Q-values. Escape or closing the window stops playback. Rendering is intentionally separate from
 training and must not be included in training or evaluation timing.
 

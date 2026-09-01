@@ -33,7 +33,7 @@ class ClassicEnvironmentTest(unittest.TestCase):
     def test_contract_and_time_limit(self) -> None:
         with ClassicGravityEnv(ClassicConfig(max_episode_steps=2)) as env:
             observation = env.reset(7)
-            self.assertEqual(len(observation), 28)
+            self.assertEqual(len(observation), 36)
             self.assertTrue(all(math.isfinite(value) for value in observation))
             self.assertTrue(env.track_name)
             self.assertGreater(env.track_count(0), 0)

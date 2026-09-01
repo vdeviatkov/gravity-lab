@@ -11,7 +11,15 @@ namespace gravity_lab::classic {
 
 class Renderer;
 
-constexpr std::size_t kObservationSize = 28;
+// Indices [0, kBaseObservationSize) are the original bike/track state (progress, league,
+// per-component position/velocity relative to the bike's center body). Indices
+// [kBaseObservationSize, kObservationSize) are an obstacle-distance sensor: kObstacleRayCount
+// rays are cast from the bike's center, evenly spaced by full turns around it, and each entry is
+// the distance (in [0, 1], where 1.0 means "no track segment within range") to the nearest
+// bounded track polyline segment that ray intersects. See Environment::Impl::make_observation.
+constexpr std::size_t kBaseObservationSize = 28;
+constexpr std::size_t kObstacleRayCount = 8;
+constexpr std::size_t kObservationSize = kBaseObservationSize + kObstacleRayCount;
 constexpr std::int32_t kActionCount = 9;
 using Observation = std::array<double, kObservationSize>;
 

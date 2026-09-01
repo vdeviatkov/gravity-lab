@@ -33,6 +33,9 @@ int guard(Function&& function) {
     }
 }
 
+static_assert(gravity_lab::classic::kObservationSize == GDC_OBSERVATION_SIZE,
+              "GDC_OBSERVATION_SIZE must track gravity_lab::classic::kObservationSize");
+
 void copy_observation(const gravity_lab::classic::Observation& source, double* destination) {
     std::copy(source.begin(), source.end(), destination);
 }

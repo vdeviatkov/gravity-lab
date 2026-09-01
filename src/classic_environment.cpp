@@ -1,5 +1,6 @@
 #include "gravity_lab/classic_environment.hpp"
 
+#include "GameLevel.h"
 #include "GamePhysics.h"
 #include "LevelLoader.h"
 #include "TimerOrMotoPartOrMenuElem.h"
@@ -15,7 +16,57 @@ namespace gravity_lab::classic {
 namespace {
 
 constexpr double kFixed = 65'536.0;
+// Same divisor used for the position-delta features below (indices 4..27), so obstacle-ray
+// distances land in a comparable numeric range to the rest of the observation.
+constexpr double kObstaclePositionScale = kFixed * 10.0;
+constexpr double kObstacleMaxRange = kObstaclePositionScale * 5.0;
+constexpr int kObstacleSearchRadius = 64;  // track segments scanned on each side of the bike
+constexpr double kTwoPi = 6.283185307179586;
 std::atomic<bool> active_environment{false};
+
+struct Vec2 { double x; double y; };
+
+double cross(const Vec2& a, const Vec2& b) { return a.x * b.y - a.y * b.x; }
+
+// GameLevel stores track polyline points scaled by 8 relative to the physics engine's F16
+// (65536-scale) fixed-point coordinates; LevelLoader::method_90/91/92 apply the same `<< 1`
+// correction when comparing level positions against a bike component's xF16/yF16.
+Vec2 track_point(const GameLevel& level, int index) {
+    return {static_cast<double>(level.pointPositions[index][0]) * 2.0,
+            static_cast<double>(level.pointPositions[index][1]) * 2.0};
+}
+
+// Index of the track segment whose start point is at or immediately before world x `value`,
+// via binary search (pointPositions is monotonically non-decreasing in x).
+int locate_segment(const GameLevel& level, double value) {
+    int low = 0;
+    int high = level.pointsCount - 2;
+    if (high <= low) return 0;
+    while (low < high) {
+        const int mid = low + (high - low + 1) / 2;
+        if (track_point(level, mid).x <= value) low = mid; else high = mid - 1;
+    }
+    return low;
+}
+
+// Distance from `origin` along unit `direction` to the nearest intersection with a bounded
+// track segment in [begin, end); segments are treated as finite (clipped to their own two
+// endpoints), never as infinite lines. Returns kObstacleMaxRange if nothing is hit in range.
+double cast_obstacle_ray(const Vec2& origin, const Vec2& direction, const GameLevel& level,
+                         int begin, int end) {
+    double nearest = kObstacleMaxRange;
+    for (int i = begin; i < end; ++i) {
+        const Vec2 start = track_point(level, i);
+        const Vec2 segment{track_point(level, i + 1).x - start.x, track_point(level, i + 1).y - start.y};
+        const double denominator = cross(direction, segment);
+        if (std::abs(denominator) < 1e-9) continue;  // ray parallel to this segment
+        const Vec2 originToStart{start.x - origin.x, start.y - origin.y};
+        const double t = cross(originToStart, segment) / denominator;
+        const double s = cross(originToStart, direction) / denominator;
+        if (t >= 0.0 && t <= nearest && s >= 0.0 && s <= 1.0) nearest = t;
+    }
+    return nearest;
+}
 
 struct Controls { int drive; int lean; };
 
@@ -71,6 +122,19 @@ struct Environment::Impl {
             result[offset + 1] = (component->yF16 - center->yF16) / (kFixed * 10.0);
             result[offset + 2] = component->field_382 / (kFixed * 20.0);
             result[offset + 3] = component->field_383 / (kFixed * 20.0);
+        }
+
+        const Vec2 origin{static_cast<double>(center->xF16), static_cast<double>(center->yF16)};
+        const GameLevel& level = *loader.gameLevel;
+        const int segment_count = level.pointsCount - 1;
+        const int current_segment = locate_segment(level, origin.x);
+        const int begin = std::max(0, current_segment - kObstacleSearchRadius);
+        const int end = std::min(segment_count, current_segment + kObstacleSearchRadius + 1);
+        for (std::size_t ray = 0; ray < kObstacleRayCount; ++ray) {
+            const double angle = kTwoPi * static_cast<double>(ray) / static_cast<double>(kObstacleRayCount);
+            const Vec2 direction{std::cos(angle), std::sin(angle)};
+            const double distance = cast_obstacle_ray(origin, direction, level, begin, end);
+            result[kBaseObservationSize + ray] = distance / kObstacleMaxRange;
         }
         return result;
     }

@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 
-enum { GDC_OBSERVATION_SIZE = 28, GDC_ACTION_COUNT = 9 };
+enum { GDC_OBSERVATION_SIZE = 36, GDC_ACTION_COUNT = 9 };
 
 typedef struct gdc_env gdc_env;
 

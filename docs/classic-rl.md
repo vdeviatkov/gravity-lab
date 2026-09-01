@@ -59,7 +59,7 @@ Actions are identical in C++ and Python:
 | 7 | brake + lean back |
 | 8 | brake + lean forward |
 
-The observation is 28 `double` values:
+The observation is 36 `double` values:
 
 | Indices | Meaning |
 |---|---|
@@ -68,12 +68,21 @@ The observation is 28 `double` values:
 | 2 | start-line-crossed flag |
 | 3 | bike league divided by 3 |
 | 4..27 | six physics points, four values each: relative x/10, relative y/10, vx/20, vy/20 |
+| 28..35 | obstacle-distance sensor: 8 rays cast from the center point, evenly spaced by full turns, each the distance (in `[0, 1]`, `1.0` = nothing in range) to the nearest track polyline segment that ray intersects |
 
 Physics point 0 is the center reference, 1 is the front wheel, 2 is the rear wheel, and 3–5 are the
 remaining frame/rider constraint points from the original engine. Positions are relative to point
 0; velocities remain absolute. Values are not clipped. This dense vector is appropriate for a
 small neural network. The tabular examples intentionally coarsen six selected values, so their
 state space is not equivalent to the full observation.
+
+The obstacle sensor treats the track's ground polyline as a chain of bounded line segments (each
+just its two endpoints) rather than infinite lines: a ray only counts as hitting a segment if the
+intersection falls within that segment's own span. Ray 0 points along the direction of increasing
+progress (`+x`); the remaining rays are spaced 45° apart around it. Rays search only the polyline
+segments near the bike's current position (`kObstacleSearchRadius` on each side) and report
+`kObstacleMaxRange` (normalized to `1.0`) when nothing is hit; both constants live next to
+`kObstacleRayCount` in `classic_environment.cpp`/`.hpp` and are tunable.
 
 The v1 reward is:
 
@@ -159,7 +168,7 @@ epsilon-greedy policy during training and a deterministic greedy policy during e
 ## External neural training and playback
 
 Keep DQN training in a separate repository and use `ClassicGravityEnv` as its environment. The
-environment returns the same 28-value observation and accepts the same nine actions as the native
+environment returns the same 36-value observation and accepts the same nine actions as the native
 API. A typical external loop should maintain independently seeded initialization, exploration,
 replay sampling, environment, and evaluation RNGs; keep replay and target-network updates out of
 the environment; and evaluate with epsilon exactly zero on fixed seeds that were not used for

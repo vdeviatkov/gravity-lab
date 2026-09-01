@@ -7,7 +7,7 @@ import platform
 from dataclasses import dataclass
 from pathlib import Path
 
-CLASSIC_OBSERVATION_SIZE = 28
+CLASSIC_OBSERVATION_SIZE = 36
 CLASSIC_ACTION_COUNT = 9
 
 
@@ -71,7 +71,7 @@ class _CClassicStepResult(ctypes.Structure):
 
 def _library_candidates() -> list[Path]:
     suffix = {"Windows": ".dll", "Darwin": ".dylib"}.get(platform.system(), ".so")
-    name = ("gravity_lab_classic" if platform.system() == "Windows" else "libgravity_lab_classic") + suffix
+    name = "gravity_lab_classic" + suffix
     root = Path(__file__).resolve().parents[2]
     candidates: list[Path] = []
     override = os.environ.get("GRAVITY_LAB_CLASSIC_LIBRARY")

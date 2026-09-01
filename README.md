@@ -18,7 +18,7 @@ name and branding.
 - Selectable built-in/custom classic levels, bike league, action repeat (`frame_skip`), episode
   limit, and seed
 - Nine discrete actions, including simultaneous throttle/brake and rider lean
-- Versioned observations: 28 values from classic fixed-point physics or 12 from the RL sandbox
+- Versioned observations: 36 values from classic fixed-point physics or 12 from the RL sandbox
 - Explicit reward, finish/crash termination, and time-limit truncation signals
 - Native C++ API, shared C ABI, and dependency-free Python wrapper
 - Random rollouts and tabular Q-learning in both C++20 and Python
