@@ -59,7 +59,10 @@ Actions are identical in C++ and Python:
 | 7 | brake + lean back |
 | 8 | brake + lean forward |
 
-The observation is 36 `double` values:
+The observation is up to `kObservationSize` (72) `double` values, in fixed regions where every
+shorter width is an exact, unchanged prefix of every longer one — a policy declares whichever
+width it was trained for (via its `.gdp` file's `input_size`), and the engine fills exactly that
+much:
 
 | Indices | Meaning |
 |---|---|
@@ -68,29 +71,41 @@ The observation is 36 `double` values:
 | 2 | start-line-crossed flag |
 | 3 | bike league divided by 3 |
 | 4..27 | six physics points, four values each: relative x/10, relative y/10, vx/20, vy/20 |
-| 28..35 | obstacle-distance sensor: 8 rays cast from the center point, evenly spaced by full turns, each the distance (in `[0, 1]`, `1.0` = nothing in range) to the nearest track polyline segment that ray intersects |
+| 28..(28+ray_count) | obstacle-distance sensor: `Config::obstacle_ray_count` rays (1..`kMaxObstacleRayCount`, 32) cast from the center point, evenly spaced by full turns, each the distance (in `[0, 1]`, `1.0` = nothing in range) to the nearest track polyline segment that ray intersects |
+| 60..71 | per-component acceleration: same six physics points, x/20 and y/20 each — always computed regardless of `obstacle_ray_count`, so it lands at a fixed offset (`kObstacleRegionEnd`) |
 
 Physics point 0 is the center reference, 1 is the front wheel, 2 is the rear wheel, and 3–5 are the
 remaining frame/rider constraint points from the original engine. Positions are relative to point
-0; velocities remain absolute. Values are not clipped. This dense vector is appropriate for a
-small neural network. The tabular examples intentionally coarsen six selected values, so their
-state space is not equivalent to the full observation.
+0; velocities and accelerations remain absolute. Values are not clipped. This dense vector is
+appropriate for a small neural network. The tabular examples intentionally coarsen six selected
+values, so their state space is not equivalent to the full observation.
 
 The obstacle sensor treats the track's ground polyline as a chain of bounded line segments (each
 just its two endpoints) rather than infinite lines: a ray only counts as hitting a segment if the
 intersection falls within that segment's own span. Ray 0 points along the direction of increasing
-progress (`+x`); the remaining rays are spaced 45° apart around it. Rays search only the polyline
-segments near the bike's current position (`kObstacleSearchRadius` on each side) and report
-`kObstacleMaxRange` (normalized to `1.0`) when nothing is hit; both constants live next to
-`kObstacleRayCount` in `classic_environment.cpp`/`.hpp` and are tunable.
+progress (`+x`); the remaining rays are spaced evenly around it, `360° / obstacle_ray_count` apart
+(so growing `obstacle_ray_count` changes every ray's angle except ray 0 — a policy trained with a
+smaller ray count is unaffected, since its own rays are computed with its own `obstacle_ray_count`
+regardless of what the engine's maximum has grown to). Rays search only the polyline segments near
+the bike's current position (`kObstacleSearchRadius` on each side) and report `kObstacleMaxRange`
+(normalized to `1.0`) when nothing is hit; both constants live in `classic_environment.cpp` and are
+tunable. The apps that load a portable policy (`gravity_lab_ai_arcade`,
+`gravity_lab_classic_viewer`) derive `obstacle_ray_count` from the policy's own declared
+observation size rather than requiring it as a separate argument.
 
 The v1 reward is:
 
 ```text
-r = 0.1 * (center_x_after - center_x_before) - 0.001
+r = 0.1 * (center_x_after - center_x_before) - 0.003
     + 10 if finished
     - 5 if crashed
 ```
+
+The per-step penalty was raised from an original `0.001`: over a full truncated episode
+(`max_episode_steps=2000` in every shipped config), `0.001` only cost `2.0` total — less than the
+crash penalty — making "freeze and let the clock run out" cheaper than attempting an obstacle and
+risking a crash. At `0.003`, a full truncated episode costs `6.0`, more than one crash, removing
+that incentive to idle on sections a policy hasn't learned to pass yet.
 
 The environment, action order, scaling, reward, and ending rules are versioned together. Any
 semantic change requires a new environment ID.

@@ -27,9 +27,28 @@ class Renderer;
 //       policies each keep their own ray count and angles exactly. Indices in
 //       [kBaseObservationSize + Config::obstacle_ray_count, kObstacleRegionEnd) are left at zero
 //       for a given environment.
-//   [kObstacleRegionEnd, kObservationSize)                     per-component acceleration: the
+//   [kObstacleRegionEnd, kAccelerationRegionEnd)                per-component acceleration: the
 //       same 6 physics points as the base region, x/y acceleration each, always computed
 //       regardless of obstacle_ray_count.
+//   [kAccelerationRegionEnd, kTrackIdRegionEnd)                  track identity: a one-hot vector
+//       over (level_group, track), index = level_group * kTracksPerLevelGroup + track, always
+//       computed regardless of curriculum. Lets a single network condition its Q-values on which
+//       of the 30 tracks it is on instead of inferring track identity purely from geometry.
+//   [kTrackIdRegionEnd, kTrackIdRegionEnd + Config::obstacle_ray_count)
+//                                                               head-clearance sensor: the same
+//       ray count and angles as the obstacle-distance sensor above, but cast from physics point 5
+//       (the rider's head -- the only point whose ground contact is an instant crash rather than a
+//       graduated bounce, and the smallest of the three collision-radius classes; see
+//       GamePhysics::const175_1_half and the docs/training-runs.md "SAC + REDQ" writeup for how
+//       this was identified) instead of the center point. Each entry is
+//       `max(0, distance - head_radius) / kObstacleMaxRange`, i.e. remaining clearance before the
+//       head's own collision circle would touch the nearest track segment, not raw geometric
+//       distance -- deliberately reuses Config::obstacle_ray_count rather than adding a second,
+//       independently configurable ray count: the two sensors always share ray count and angles,
+//       which keeps every existing derivation of ray count from a policy's declared
+//       observation_size (see apps/ai_arcade.cpp, classic_policy_viewer.cpp) correct unmodified.
+//       Indices in [kTrackIdRegionEnd + Config::obstacle_ray_count, kObservationSize) are left at
+//       zero for a given environment, mirroring the obstacle-sensor region above.
 //
 // See Environment::Impl::make_observation.
 constexpr std::size_t kBaseObservationSize = 28;
@@ -38,7 +57,17 @@ constexpr std::size_t kMaxObstacleRayCount = 32;
 constexpr std::size_t kObstacleRegionEnd = kBaseObservationSize + kMaxObstacleRayCount;
 constexpr std::size_t kPhysicsPointCount = 6;
 constexpr std::size_t kAccelerationSize = kPhysicsPointCount * 2;
-constexpr std::size_t kObservationSize = kObstacleRegionEnd + kAccelerationSize;
+constexpr std::size_t kAccelerationRegionEnd = kObstacleRegionEnd + kAccelerationSize;
+constexpr std::size_t kLevelGroupCount = 3;
+constexpr std::size_t kTracksPerLevelGroup = 10;
+constexpr std::size_t kTrackIdSize = kLevelGroupCount * kTracksPerLevelGroup;
+constexpr std::size_t kTrackIdRegionEnd = kAccelerationRegionEnd + kTrackIdSize;
+// Reuses kMaxObstacleRayCount (the head-clearance sensor always uses the same ray count as the
+// obstacle sensor -- see the layout comment above), kept as its own named constant for clarity at
+// call sites that specifically mean the head-clearance region's reserved width.
+constexpr std::size_t kMaxHeadClearanceRayCount = kMaxObstacleRayCount;
+constexpr std::size_t kHeadClearanceRegionEnd = kTrackIdRegionEnd + kMaxHeadClearanceRayCount;
+constexpr std::size_t kObservationSize = kHeadClearanceRegionEnd;
 constexpr std::int32_t kActionCount = 9;
 using Observation = std::array<double, kObservationSize>;
 

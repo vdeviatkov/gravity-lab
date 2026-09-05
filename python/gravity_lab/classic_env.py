@@ -7,7 +7,7 @@ import platform
 from dataclasses import dataclass
 from pathlib import Path
 
-CLASSIC_OBSERVATION_SIZE = 72
+CLASSIC_OBSERVATION_SIZE = 134
 CLASSIC_ACTION_COUNT = 9
 
 
