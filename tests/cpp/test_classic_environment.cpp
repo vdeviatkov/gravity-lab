@@ -19,7 +19,6 @@ void check(bool condition, const std::string& message) {
 
 struct Transition {
     gravity_lab::classic::Observation observation;
-    double reward;
     int code;
     bool operator==(const Transition&) const = default;
 };
@@ -39,7 +38,7 @@ std::vector<Transition> trajectory(
     };
     for (const auto action : actions) {
         const auto step = env.step(action);
-        result.push_back({step.observation, step.reward, step.physics_code});
+        result.push_back({step.observation, step.physics_code});
         if (env.done()) break;
     }
     return result;
@@ -97,7 +96,6 @@ int main(int argc, char** argv) {
             while (!env.done()) final = env.step(gravity_lab::classic::Action::Throttle);
             check(final.terminated && final.finished && !final.crashed && !final.truncated,
                   "throttle baseline reaches the Intro finish as a terminal transition");
-            check(final.reward > 9.0, "finish transition includes its reward bonus");
         }
 
         {
@@ -108,7 +106,6 @@ int main(int argc, char** argv) {
             while (!env.done()) final = env.step(gravity_lab::classic::Action::ThrottleLeanBack);
             check(final.terminated && final.crashed && !final.finished && !final.truncated,
                   "crash is exposed as a terminal transition");
-            check(final.reward < -4.0, "crash transition includes its reward penalty");
         }
 
         bool bad_track_rejected = false;

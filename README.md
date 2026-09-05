@@ -19,7 +19,8 @@ name and branding.
   limit, and seed
 - Nine discrete actions, including simultaneous throttle/brake and rider lean
 - Versioned observations: 36 values from classic fixed-point physics or 12 from the RL sandbox
-- Explicit reward, finish/crash termination, and time-limit truncation signals
+- Finish/crash termination and time-limit truncation signals (reward is left to the caller --
+  see docs/classic-rl.md)
 - Native C++ API, shared C ABI, and dependency-free Python wrapper
 - Random rollouts and tabular Q-learning in both C++20 and Python
 - Versioned, framework-neutral dense Q-policy export with matching Python/C++ inference

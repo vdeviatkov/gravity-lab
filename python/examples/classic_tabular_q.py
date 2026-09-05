@@ -9,7 +9,24 @@ import random
 import statistics
 from pathlib import Path
 
-from gravity_lab import CLASSIC_ACTION_COUNT, ClassicConfig, ClassicGravityEnv
+from gravity_lab import CLASSIC_ACTION_COUNT, ClassicConfig, ClassicGravityEnv, ClassicStepResult
+
+# This demo's own reward, local to this file -- the engine itself only exposes game state
+# (ClassicStepResult has no reward field). A step reward from progress made this step, plus
+# terminal bonuses/penalties, is enough to make this tabular baseline learn; unrelated to any
+# project's own reward design (e.g. gravity-lab-pytorch's reward.py).
+FINISH_BONUS = 10.0
+CRASH_PENALTY = 5.0
+PROGRESS_SCALE = 10.0
+
+
+def reward_for(previous_progress: float, result: ClassicStepResult) -> float:
+    reward = PROGRESS_SCALE * (result.observation[0] - previous_progress)
+    if result.finished:
+        reward += FINISH_BONUS
+    if result.crashed:
+        reward -= CRASH_PENALTY
+    return reward
 
 
 def encode(observation: tuple[float, ...]) -> tuple[int, ...]:
@@ -84,8 +101,9 @@ def evaluate(
         steps = 0
         while True:
             action = greedy(q.get(state_key(encode(observation)), [0.0] * CLASSIC_ACTION_COUNT))
+            previous_progress = observation[0]
             result = env.step(action)
-            total_reward += result.reward
+            total_reward += reward_for(previous_progress, result)
             steps += 1
             observation = result.observation
             if result.terminated or result.truncated:
@@ -150,16 +168,19 @@ def main() -> None:
                 state = encode(observation)
                 epsilon = epsilon_at(episode, args.episodes)
                 total_reward = 0.0
+                previous_progress = observation[0]
                 while True:
                     values = q.setdefault(state_key(state), [0.0] * CLASSIC_ACTION_COUNT)
                     action = exploration.randrange(CLASSIC_ACTION_COUNT) if exploration.random() < epsilon else greedy(values)
                     result = env.step(action)
                     next_state = encode(result.observation)
                     next_values = q.setdefault(state_key(next_state), [0.0] * CLASSIC_ACTION_COUNT)
+                    step_reward = reward_for(previous_progress, result)
                     values[action] = q_learning_update(
-                        values[action], result.reward, next_values, result.terminated, args.alpha, args.gamma
+                        values[action], step_reward, next_values, result.terminated, args.alpha, args.gamma
                     )
-                    total_reward += result.reward
+                    total_reward += step_reward
+                    previous_progress = result.observation[0]
                     state = next_state
                     if result.terminated or result.truncated:
                         break

@@ -66,11 +66,10 @@ int main(int argc, char** argv) {
         gravity_lab::classic::Environment env(options.config, options.level_pack);
         std::mt19937_64 exploration(options.config.seed + 10'000);
         std::uniform_int_distribution<int> actions(0, gravity_lab::classic::kActionCount - 1);
-        std::cout << "environment,track,episode,seed,reward,steps,progress,finished,crashed,truncated,wheelie\n";
+        std::cout << "environment,track,episode,seed,steps,progress,finished,crashed,truncated,wheelie\n";
         for (std::uint32_t episode = 0; episode < options.episodes; ++episode) {
             const auto seed = options.config.seed + episode;
             auto observation = env.reset(seed);
-            double total_reward = 0.0;
             gravity_lab::classic::StepResult result;
             while (!env.done()) {
                 const auto action = options.random_policy
@@ -78,10 +77,9 @@ int main(int argc, char** argv) {
                     : gravity_lab::classic::Action::Throttle;
                 result = env.step(action);
                 observation = result.observation;
-                total_reward += result.reward;
             }
             std::cout << "classic-v1," << env.track_name() << ',' << episode << ',' << seed << ','
-                      << total_reward << ',' << env.episode_step() << ',' << observation[0] << ','
+                      << env.episode_step() << ',' << observation[0] << ','
                       << result.finished << ',' << result.crashed << ',' << result.truncated << ','
                       << result.wheelie_finish << '\n';
         }

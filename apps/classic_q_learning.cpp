@@ -34,6 +34,21 @@ struct StateHash {
 
 using Table = std::unordered_map<State, Values, StateHash>;
 
+// This demo's own reward, local to this file -- the engine itself only exposes game state
+// (StepResult has no reward field; see classic_environment.hpp). A step reward from progress made
+// this step, plus terminal bonuses/penalties, is enough to make this tabular baseline learn;
+// unrelated to any project's own reward design (e.g. gravity-lab-pytorch's reward.py).
+constexpr double kFinishBonus = 10.0;
+constexpr double kCrashPenalty = 5.0;
+constexpr double kProgressScale = 10.0;
+
+double reward_for(double previous_progress, const gravity_lab::classic::StepResult& result) {
+    double reward = kProgressScale * (result.observation[0] - previous_progress);
+    if (result.finished) reward += kFinishBonus;
+    if (result.crashed) reward -= kCrashPenalty;
+    return reward;
+}
+
 struct Options {
     gravity_lab::classic::Config config;
     std::filesystem::path level_pack;
@@ -223,9 +238,10 @@ void evaluate(gravity_lab::classic::Environment& env, const Table& table, const 
         do {
             const auto found = table.find(encode(observation));
             const auto action = greedy(found == table.end() ? zeros : found->second);
+            const double previous_progress = observation[0];
             result = env.step(static_cast<gravity_lab::classic::Action>(action));
             observation = result.observation;
-            reward += result.reward;
+            reward += reward_for(previous_progress, result);
             ++total_steps;
         } while (!env.done());
         rewards.push_back(reward);
@@ -264,15 +280,18 @@ int main(int argc, char** argv) {
                 const double epsilon = 0.05 + 0.95 * std::exp(
                     -static_cast<double>(episode) / std::max(1.0, options.episodes * 0.30));
                 double total_reward = 0.0;
+                double previous_progress = observation[0];
                 gravity_lab::classic::StepResult result;
                 do {
                     Values& values = table[state];
                     const std::size_t action = chance(exploration) < epsilon ? actions(exploration) : greedy(values);
                     result = env.step(static_cast<gravity_lab::classic::Action>(action));
                     const State next_state = encode(result.observation);
+                    const double step_reward = reward_for(previous_progress, result);
+                    previous_progress = result.observation[0];
                     const double bootstrap = result.terminated ? 0.0 : options.gamma * *std::max_element(table[next_state].begin(), table[next_state].end());
-                    values[action] += options.alpha * (result.reward + bootstrap - values[action]);
-                    total_reward += result.reward;
+                    values[action] += options.alpha * (step_reward + bootstrap - values[action]);
+                    total_reward += step_reward;
                     state = next_state;
                 } while (!env.done());
                 if (episode % std::max<std::uint32_t>(1, options.episodes / 10) == 0) {

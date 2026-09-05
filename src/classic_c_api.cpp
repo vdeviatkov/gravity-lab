@@ -78,7 +78,6 @@ int gdc_step(gdc_env* env, int action, gdc_step_result* result) {
         }
         const auto native = env->value.step(static_cast<gravity_lab::classic::Action>(action));
         copy_observation(native.observation, result->observation);
-        result->reward = native.reward;
         result->terminated = native.terminated;
         result->truncated = native.truncated;
         result->finished = native.finished;

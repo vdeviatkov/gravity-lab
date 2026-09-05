@@ -94,9 +94,11 @@ struct Config {
     std::uint32_t obstacle_ray_count{static_cast<std::uint32_t>(kDefaultObstacleRayCount)};
 };
 
+// No reward field: reward design is a training concern, not game logic. Everything needed to
+// compute one externally is already here -- observation()[0] is progress (see
+// Environment::Impl::make_observation), and finished/crashed/truncated below are terminal signals.
 struct StepResult {
     Observation observation{};
-    double reward{};
     bool terminated{};
     bool truncated{};
     bool finished{};

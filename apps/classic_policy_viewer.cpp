@@ -154,7 +154,6 @@ int main(int argc, char** argv) {
         for (std::uint32_t episode = 0; episode < options.episodes && renderer.open(); ++episode) {
             auto observation = environment.reset(options.config.seed + episode);
             std::uint64_t elapsed_milliseconds = 0;
-            double total_reward = 0.0;
             gravity_lab::classic::StepResult result;
             renderer.show_message(environment.track_name(), 1'000);
             renderer.render_frame(elapsed_milliseconds);
@@ -163,7 +162,6 @@ int main(int argc, char** argv) {
                     std::span<const double>(observation.data(), policy.observation_size()));
                 result = environment.step(static_cast<gravity_lab::classic::Action>(action));
                 observation = result.observation;
-                total_reward += result.reward;
                 elapsed_milliseconds += 20ULL * options.config.frame_skip;
                 renderer.render_frame(elapsed_milliseconds);
                 pacer.wait();
@@ -180,7 +178,7 @@ int main(int argc, char** argv) {
                 else std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
             std::cout << "episode=" << episode << " seed=" << options.config.seed + episode
-                      << " reward=" << total_reward << " steps=" << environment.episode_step()
+                      << " steps=" << environment.episode_step()
                       << " progress=" << observation[0] << " finished=" << result.finished
                       << " crashed=" << result.crashed << " truncated=" << result.truncated << '\n';
         }

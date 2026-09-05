@@ -40,10 +40,18 @@ agent action across that many original physics updates. The original game does n
 continuous time-step setting, so v1 deliberately keeps its internal tick unchanged.
 
 `reset(seed)` restores the selected track and bike. `step(action)` returns the next observation,
-reward, `terminated`, `truncated`, finish/crash details, and the original physics return code. A
-finish or crash terminates; the configured agent-step limit truncates. Algorithms may bootstrap
-through truncation but not through termination. `wheelie_finish` mirrors the original game's
-"Wheelie!" condition: the finish was reached without the front wheel having touched the track.
+`terminated`, `truncated`, finish/crash details, and the original physics return code. A finish or
+crash terminates; the configured agent-step limit truncates. Algorithms may bootstrap through
+truncation but not through termination. `wheelie_finish` mirrors the original game's "Wheelie!"
+condition: the finish was reached without the front wheel having touched the track.
+
+Deliberately absent: a reward. Reward design is a training concern, not game logic, and this
+environment does not have an opinion on it -- observation index `0` is progress (see the
+observation layout below) and `finished`/`crashed`/`truncated` are exposed directly, which is
+everything a caller needs to compute its own reward externally. `gravity-lab-pytorch`'s
+`src/gravity_lab_rl/reward.py` is one such reward, tuned for its own training pipeline; the demos
+in `apps/classic_q_learning.cpp` and `python/examples/classic_tabular_q.py` each define their own,
+much simpler one, local to that file.
 
 Actions are identical in C++ and Python:
 
@@ -93,22 +101,8 @@ tunable. The apps that load a portable policy (`gravity_lab_ai_arcade`,
 `gravity_lab_classic_viewer`) derive `obstacle_ray_count` from the policy's own declared
 observation size rather than requiring it as a separate argument.
 
-The v1 reward is:
-
-```text
-r = 0.1 * (center_x_after - center_x_before) - 0.003
-    + 10 if finished
-    - 5 if crashed
-```
-
-The per-step penalty was raised from an original `0.001`: over a full truncated episode
-(`max_episode_steps=2000` in every shipped config), `0.001` only cost `2.0` total — less than the
-crash penalty — making "freeze and let the clock run out" cheaper than attempting an obstacle and
-risking a crash. At `0.003`, a full truncated episode costs `6.0`, more than one crash, removing
-that incentive to idle on sections a policy hasn't learned to pass yet.
-
-The environment, action order, scaling, reward, and ending rules are versioned together. Any
-semantic change requires a new environment ID.
+The environment, action order, scaling, and ending rules are versioned together. Any semantic
+change requires a new environment ID.
 
 ## Python training
 

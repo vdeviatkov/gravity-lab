@@ -32,7 +32,6 @@ typedef struct gdc_config {
 
 typedef struct gdc_step_result {
     double observation[GDC_OBSERVATION_SIZE];
-    double reward;
     int terminated;
     int truncated;
     int finished;

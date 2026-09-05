@@ -36,8 +36,10 @@ class ClassicConfig:
 
 @dataclass(frozen=True)
 class ClassicStepResult:
+    # No reward field: reward design is a training concern, not game logic. observation[0] is
+    # progress and finished/crashed/truncated below are terminal signals -- everything a caller
+    # needs to compute its own reward externally.
     observation: tuple[float, ...]
-    reward: float
     terminated: bool
     truncated: bool
     finished: bool
@@ -61,7 +63,6 @@ class _CClassicConfig(ctypes.Structure):
 class _CClassicStepResult(ctypes.Structure):
     _fields_ = [
         ("observation", ctypes.c_double * CLASSIC_OBSERVATION_SIZE),
-        ("reward", ctypes.c_double),
         ("terminated", ctypes.c_int),
         ("truncated", ctypes.c_int),
         ("finished", ctypes.c_int),
@@ -194,7 +195,7 @@ class ClassicGravityEnv:
         if self._library.gdc_step(self._handle, int(action), ctypes.byref(output)) != 0:
             self._raise_native_error()
         return ClassicStepResult(
-            tuple(output.observation), output.reward, bool(output.terminated), bool(output.truncated),
+            tuple(output.observation), bool(output.terminated), bool(output.truncated),
             bool(output.finished), bool(output.crashed), bool(output.wheelie_finish), output.physics_code,
         )
 

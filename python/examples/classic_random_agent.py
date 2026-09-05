@@ -24,16 +24,14 @@ def main() -> None:
     with ClassicGravityEnv(config, args.level_pack) as env:
         for episode in range(args.episodes):
             env.reset(args.seed + episode)
-            total_reward = 0.0
             steps = 0
             while True:
                 result = env.step(exploration.randrange(CLASSIC_ACTION_COUNT))
-                total_reward += result.reward
                 steps += 1
                 if result.terminated or result.truncated:
                     break
             print(
-                f"episode={episode} track={env.track_name!r} reward={total_reward:.6f} steps={steps} "
+                f"episode={episode} track={env.track_name!r} steps={steps} "
                 f"progress={result.observation[0]:.6f} finished={result.finished} "
                 f"crashed={result.crashed} truncated={result.truncated}"
             )

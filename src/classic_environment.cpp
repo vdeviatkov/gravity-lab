@@ -16,41 +16,6 @@ namespace gravity_lab::classic {
 namespace {
 
 constexpr double kFixed = 65'536.0;
-constexpr double kCrashPenalty = 5.0;
-// Two explicit bonuses plus one penalty, deliberately simple and literal rather than a derived
-// shaping formula (see docs/training-runs.md for the earlier potential-based-shaping design this
-// replaced): a big bonus for finishing the track, a small bonus for each percent of forward
-// progress made this step, and a small penalty on any step that makes no forward progress
-// (standing still or moving backward). Without that last penalty, freezing in place costs nothing
-// while attempting an obstacle risks a crash penalty, which made "never move" look like the safe
-// choice -- the exact failure mode this session repeatedly had to fix (see "reward tuning
-// experiments" and "Redesign: v2" below).
-constexpr double kFinishBonus = 10.0;  // the big, one-time bonus for reaching the finish line
-constexpr double kProgressPercentBonus = 0.1;  // per 1% of track progress advanced this step
-// The per-percent bonus scales up with how far along the track progress already is (1x at the
-// very start, 2x right at the finish), so pushing further into a track -- past whatever hard
-// obstacle sits later on -- earns more than repeating the same easy early percent over and over.
-// Without this, a policy that dies early and restarts has no reason to prefer reaching further:
-// the first 10% of Deep and the last 10% are worth exactly the same, so cheap early progress can
-// dominate the training signal even though the late obstacle is what's actually unsolved.
-constexpr double kProgressRampFactor = 1.0;
-// Rewards covering the same distance in fewer steps, on top of the linear per-percent bonus above.
-// Each environment step already spans a fixed slice of game time (Config::frame_skip physics
-// ticks), so percent_moved this step *is* an instantaneous speed measurement, not just a distance
-// one -- covering a given span of track in fewer, bigger-percent-moved steps earns strictly more
-// total reward than spreading the same total distance over more, smaller-percent-moved steps,
-// since this term is quadratic (not linear) in percent_moved: kSpeedBonusScale * percent_moved^2.
-// Calibrated against a measured full-throttle run (ai_arcade-equivalent ThrottleLeanForward on
-// Intro): typical positive percent_moved is ~0.36-0.46 per step, at which this term is roughly
-// equal to the linear per-percent bonus (kProgressPercentBonus * 0.4 = 0.04 vs kSpeedBonusScale *
-// 0.4^2 = 0.04) -- doubling reward for genuinely fast movement while barely touching slow/cautious
-// steps (at percent_moved=0.05, this term is 1/8th of the linear one). Applied only to positive
-// steps, so it doesn't interact with the idle-vs-crash discounted-value math below.
-constexpr double kSpeedBonusScale = 0.25;
-// For idling-forever to discount worse than one crash: kIdlePenalty / (1 - gamma) > kCrashPenalty,
-// i.e. kIdlePenalty > kCrashPenalty * (1 - gamma) = 5.0 * 0.01 = 0.05 (gamma=0.99 in every shipped
-// config). Current value keeps a 2x margin.
-constexpr double kIdlePenalty = 0.1;
 // Same divisor used for the position-delta features below (indices 4..27), so obstacle-ray
 // distances land in a comparable numeric range to the rest of the observation.
 constexpr double kObstaclePositionScale = kFixed * 10.0;
@@ -227,11 +192,6 @@ struct Environment::Impl {
         steps = 0;
         terminal = time_limit = reached_finish = did_crash = wheelie = false;
         last_physics_code = 4;
-        // The progress bonus is earned only past this episode's furthest point reached so far
-        // (see Environment::step), not merely past the previous step -- so it must start at
-        // this episode's actual starting progress, not 0, or the first step could spuriously
-        // "earn" the gap between 0 and wherever the track's start line actually sits.
-        peak_progress = progress();
         return make_observation();
     }
 
@@ -246,12 +206,6 @@ struct Environment::Impl {
     bool did_crash{};
     bool wheelie{};
     int last_physics_code{4};
-    // Furthest `progress()` value reached so far this episode. The reward's progress bonus
-    // (Environment::step) only fires when current progress exceeds this, so retreating and
-    // re-covering already-visited ground earns nothing beyond the flat idle penalty -- closes a
-    // retreat-then-surge reward-hacking path the plain previous-step-relative version allowed
-    // (see docs/training-runs.md, "SAC + REDQ" run #20's reward-hacking check).
-    double peak_progress{};
 };
 
 Environment::Environment(Config config, std::filesystem::path level_pack) {
@@ -295,21 +249,11 @@ StepResult Environment::step(Action action) {
     ++impl_->steps;
     if (!impl_->terminal && impl_->steps >= impl_->config.max_episode_steps) impl_->time_limit = true;
 
-    const double current_progress = impl_->progress();
-    // Only progress past this episode's furthest point so far earns the bonus below -- retreating
-    // and re-covering already-visited ground earns nothing beyond the flat idle penalty, closing a
-    // retreat-then-surge reward-hacking path (see peak_progress's doc comment in Impl).
-    const double new_peak = std::max(impl_->peak_progress, current_progress);
-    const double percent_moved = (new_peak - impl_->peak_progress) * 100.0;
-    impl_->peak_progress = new_peak;
-    const double progress_multiplier = 1.0 + kProgressRampFactor * current_progress;
-    double reward = percent_moved > 0.0
-        ? kProgressPercentBonus * percent_moved * progress_multiplier
-              + kSpeedBonusScale * percent_moved * percent_moved
-        : -kIdlePenalty;
-    if (impl_->reached_finish) reward += kFinishBonus;
-    if (impl_->did_crash) reward -= kCrashPenalty;
-    return {observation(), reward, impl_->terminal, impl_->time_limit, impl_->reached_finish,
+    // No reward is computed here: reward design is a training concern, not game logic, and
+    // everything needed to compute one externally is already exposed -- observation()[0] is
+    // progress (see make_observation), and StepResult below carries finished/crashed/truncated
+    // directly. See gravity-lab-pytorch's src/gravity_lab_rl/reward.py for this project's reward.
+    return {observation(), impl_->terminal, impl_->time_limit, impl_->reached_finish,
             impl_->did_crash, impl_->wheelie, impl_->last_physics_code};
 }
 
