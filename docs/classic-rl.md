@@ -1,10 +1,11 @@
 # Faithful classic reinforcement-learning API
 
 Environment ID `gravity-lab-classic-v1` runs the vendored classic game's `LevelLoader` and integer
-fixed-point `GamePhysics` directly. It does not approximate the classic game with the lightweight
-sandbox, and it does not create an SDL window during reset, stepping, training, or tests. The
-playable `GravityDefied` executable and the headless environment therefore share physics and level
-data while keeping rendering and menu timing outside the learning loop.
+fixed-point `GamePhysics` directly, and it does not create an SDL window during reset, stepping,
+training, or tests. The playable `GravityDefied` executable and the headless environment therefore
+share physics and level data while keeping rendering and menu timing outside the learning loop.
+This is the only environment in this repository -- there is no separate sandbox physics to confuse
+a result with.
 
 ## Build
 
@@ -12,9 +13,7 @@ SDL2, SDL2_image, SDL2_ttf, pkg-config, CMake 3.20+, and a C++20 compiler are re
 
 ```sh
 brew install sdl2 sdl2_image sdl2_ttf pkg-config
-cmake -S . -B build-classic-rl \
-  -DGRAVITY_LAB_BUILD_CLASSIC=ON \
-  -DGRAVITY_LAB_BUILD_DESKTOP=OFF
+cmake -S . -B build-classic-rl -DGRAVITY_LAB_BUILD_CLASSIC=ON
 cmake --build build-classic-rl --config Release
 ctest --test-dir build-classic-rl -C Release --output-on-failure
 ```
@@ -26,8 +25,8 @@ the shared library under `Release/`.
 The important outputs are:
 
 - `classic/GravityDefied`: human-playable game;
-- `gravity_lab_classic_headless`: random and throttle baselines;
-- `gravity_lab_classic_q`: standard-library-only C++ tabular Q-learning;
+- `gravity_lab_classic_headless`: random and throttle baselines, for a quick native sanity check of
+  the environment without Python;
 - `gravity_lab_classic_viewer`: faithful graphical playback of an exported dense Q-policy;
 - `libgravity_lab_classic`: stable C ABI used by Python and other languages.
 
@@ -49,9 +48,7 @@ Deliberately absent: a reward. Reward design is a training concern, not game log
 environment does not have an opinion on it -- observation index `0` is progress (see the
 observation layout below) and `finished`/`crashed`/`truncated` are exposed directly, which is
 everything a caller needs to compute its own reward externally. `gravity-lab-pytorch`'s
-`src/gravity_lab_rl/reward.py` is one such reward, tuned for its own training pipeline; the demos
-in `apps/classic_q_learning.cpp` and `python/examples/classic_tabular_q.py` each define their own,
-much simpler one, local to that file.
+`src/gravity_lab_rl/reward.py` is one such reward, tuned for its own training pipeline.
 
 Actions are identical in C++ and Python:
 
@@ -123,56 +120,21 @@ with ClassicGravityEnv(config) as env:
             break
 ```
 
-Run the supplied baselines from the repository root:
+Add `--level-pack path/to/levels.mrg` to use a custom pack.
 
-```sh
-PYTHONPATH=python python3 python/examples/classic_random_agent.py \
-  --group 0 --track 0 --episodes 20 --seed 7
-
-PYTHONPATH=python python3 python/examples/classic_tabular_q.py \
-  --group 0 --track 0 --episodes 2000 --train-seed 7 \
-  --eval-seed 1000007 --eval-episodes 50 \
-  --checkpoint artifacts/classic_tabular_q.json
-
-PYTHONPATH=python python3 python/examples/classic_tabular_q.py \
-  --group 0 --track 0 --eval-only --eval-seed 1000007 \
-  --eval-episodes 50 --checkpoint artifacts/classic_tabular_q.json
-```
-
-Add `--level-pack path/to/levels.mrg` to use a custom pack. The evaluation pass is greedy: epsilon
-is exactly zero. It reports every requested episode through aggregate mean/median reward, mean
-length/progress, and finish/crash rates; it never selects only the best game.
-
-## C++ training and embedding
-
-The ready-to-run standard-library trainer uses the same environment and tabular encoder:
-
-```sh
-./build-classic-rl/gravity_lab_classic_headless \
-  --group 0 --track 0 --policy random --episodes 20 --seed 7
-
-./build-classic-rl/gravity_lab_classic_q \
-  --group 0 --track 0 --episodes 2000 --train-seed 7 \
-  --eval-seed 1000007 --eval-episodes 50 \
-  --checkpoint artifacts/classic_q.tsv
-
-./build-classic-rl/gravity_lab_classic_q \
-  --group 0 --track 0 --eval-only --eval-seed 1000007 \
-  --eval-episodes 50 --checkpoint artifacts/classic_q.tsv
-```
+## C++ embedding
 
 For your own native agent, link `gravity_lab_classic_core`, include
 `gravity_lab/classic_environment.hpp`, and use `Environment::reset`/`step`. Non-C++ programs can
 use the declarations in `gravity_lab/classic_c_api.h` and link `gravity_lab_classic`.
+`gravity_lab_classic_headless` is a minimal example of the former -- a fixed policy (random or
+always-throttle) run to completion, no learning, useful as a quick native sanity check of the
+environment after a change:
 
-Tabular Q-learning updates one action value after each transition:
-
-```text
-Q(s,a) <- Q(s,a) + alpha * [r + gamma * max_a' Q(s',a') - Q(s,a)]
+```sh
+./build-classic-rl/gravity_lab_classic_headless \
+  --group 0 --track 0 --policy random --episodes 20 --seed 7
 ```
-
-The `gamma * max Q` term is zero for a terminal finish/crash. The examples use a separately seeded
-epsilon-greedy policy during training and a deterministic greedy policy during evaluation.
 
 ## External neural training and playback
 
@@ -209,10 +171,7 @@ and metadata requirements.
 - Keep training and evaluation seeds disjoint. The classic v1 environment itself is deterministic;
   its seed is explicit for experiment identity and forward compatibility.
 - Record the repository commit, environment ID, group/track/league, custom-pack hash, frame skip,
-  episode limit, reward version, algorithm configuration, compiler, OS, and CPU.
-- Python checkpoints use `gravity-lab-classic-tabular-q-json-v1`; C++ checkpoints use
-  `gravity-lab-classic-tabular-q-tsv-v1`. Both save through a temporary file. They are not directly
-  interchangeable.
+  episode limit, reward design/version, algorithm configuration, compiler, OS, and CPU.
 - Dense neural inference uses the cross-language `gravity-lab-dense-q-policy-v1` format. It is a
   deployment artifact, not a resumable training checkpoint; keep optimizer/replay state and a
   complete experiment sidecar in the external training repository.
@@ -221,6 +180,6 @@ and metadata requirements.
   processes—not threads or multiple environment objects—for parallel collection.
 - Rendering is optional and excluded from training/evaluation timing. Do not commit videos, large
   logs, or generated checkpoints; `artifacts/` is ignored.
-- The included tabular learner is a tested educational baseline, not a claimed performance result.
-  DQN training, replay buffers, target networks, and measured benchmarks remain external experiment
-  work; Gravity Lab deliberately provides only the tested environment and inference boundary.
+- Training (replay buffers, target networks, curricula, reward design, measured benchmarks) is
+  external experiment work; Gravity Lab deliberately provides only the tested environment and
+  inference boundary.

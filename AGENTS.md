@@ -5,8 +5,9 @@
 - Neural-network training belongs in a separate experiment repository. Keep this repository's
   portable policy evaluator dependency-free and framework-neutral.
 - Keep maps and experiment inputs text-based, small, versioned, and reviewable.
-- Any observation, action, reward, physics, or termination change is an environment-contract change;
-  update documentation and cross-language tests in the same commit.
+- Any observation, action, physics, or termination change is an environment-contract change; update
+  documentation and cross-language tests in the same commit. Reward is deliberately not part of the
+  contract -- it lives in the training repository, not here.
 - Any incompatible dense-policy syntax or inference change requires a new policy-format tag and a
   shared Python/C++ fixture.
 - New randomness must have a named, independently configurable seed. Never use global RNG state.
@@ -16,7 +17,7 @@
 - The vendored `classic/` tree is GPL-2.0-only. Preserve upstream authorship and asset notices.
 - Mark modifications to files under `classic/` with the date and summarize them in
   `classic/GRAVITY_LAB_CHANGES.md`.
-- `gravity-lab-classic-v1` must continue to execute the vendored `GamePhysics`; do not substitute
-  the lightweight sandbox physics while retaining the classic environment ID.
+- `gravity-lab-classic-v1` must continue to execute the vendored `GamePhysics`; a physics change is
+  an environment-contract change (see above), not a silent substitution under the same ID.
 - The upstream engine uses process-global physics and level-loader state. Until that is removed,
   preserve the one-active-classic-environment guard and use subprocesses for parallel rollouts.
