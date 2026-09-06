@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace gravity_lab::classic {
 
@@ -132,6 +134,36 @@ public:
     [[nodiscard]] const Config& config() const noexcept;
     [[nodiscard]] std::string track_name() const;
     [[nodiscard]] std::uint32_t track_count(std::uint32_t level_group) const;
+
+    // The render camera's tracked bike position (fixed-point pixels, arbitrary but consistent
+    // origin per track). Not part of the observation/training contract -- a diagnostic accessor
+    // for visualization tooling (e.g. plotting a rollout's path across a track). Mirrors what the
+    // renderer's own camera-follow computes, including its bounded look-ahead smoothing, whose
+    // filter state is confined to this accessor and does not affect the physics simulation.
+    [[nodiscard]] std::pair<int, int> bike_position() const noexcept;
+
+    // Disables the render camera's velocity-dependent look-ahead smoothing (on by default). Purely
+    // a rendering/visualization concern -- does not affect physics or the observation/training
+    // contract. Recording tools that stitch frames into a panorama or feed bike_position() into an
+    // external plot want this off: look-ahead shifts the camera a little during fast vertical
+    // movement (e.g. a jump), which is a real per-frame difference baked into the rendered pixels,
+    // not an artifact removable after the fact -- it shows up as small seams/jitter when multiple
+    // frames of the same static geometry are compared or stitched together.
+    void set_camera_look_ahead(bool enabled) noexcept;
+
+    // The current track's ground polyline vertices, in the same fixed-point pixel coordinate space
+    // and scale as bike_position() (so a plotted polyline and a plotted bike_position() trail line
+    // up without any extra conversion). Not part of the observation/training contract -- a
+    // diagnostic accessor for visualization tooling. Reading level geometry directly and drawing it
+    // once, rather than stitching it together from multiple rendered/recorded frames, sidesteps an
+    // entire class of compositing artifacts (see generate_map_plates.py's docstring for the full
+    // history) by construction: there is nothing to misalign because nothing is being combined.
+    [[nodiscard]] std::vector<std::pair<int, int>> track_polyline() const;
+
+    // The current track's start and finish flag positions, in the same coordinate space as
+    // track_polyline() and bike_position(). Returns {start, finish}. Not part of the
+    // observation/training contract -- a diagnostic accessor for visualization tooling.
+    [[nodiscard]] std::pair<std::pair<int, int>, std::pair<int, int>> track_start_finish() const;
 
 private:
     friend class Renderer;

@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "python"))
 
 from gravity_lab import (  # noqa: E402
+    CLASSIC_OBSERVATION_SIZE,
     ClassicAction,
     ClassicConfig,
     ClassicGravityEnv,
@@ -33,7 +34,7 @@ class ClassicEnvironmentTest(unittest.TestCase):
     def test_contract_and_time_limit(self) -> None:
         with ClassicGravityEnv(ClassicConfig(max_episode_steps=2)) as env:
             observation = env.reset(7)
-            self.assertEqual(len(observation), 72)
+            self.assertEqual(len(observation), CLASSIC_OBSERVATION_SIZE)
             self.assertTrue(all(math.isfinite(value) for value in observation))
             self.assertTrue(env.track_name)
             self.assertGreater(env.track_count(0), 0)

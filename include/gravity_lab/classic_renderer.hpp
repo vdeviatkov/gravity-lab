@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <utility>
 
 namespace gravity_lab::classic {
 
@@ -22,6 +23,10 @@ public:
 
     // Returns false after the window close button or Escape is pressed.
     bool render_frame(std::uint64_t elapsed_milliseconds = 0);
+    void set_bike_only(bool enabled);
+    // Render the entire level to PNG and write world-to-image bounds to JSON.
+    void save_map_plate(const std::string& png_path, const std::string& json_path,
+                        Environment& environment);
     void show_message(std::string message, std::uint32_t duration_milliseconds);
     [[nodiscard]] bool open() const noexcept;
 
@@ -30,6 +35,12 @@ public:
     // false (rather than throwing) on a write failure, so a capture run can skip a bad frame and
     // continue rather than aborting a whole episode.
     bool save_frame(const std::string& path) const;
+
+    // Legacy name: returns the last rendered viewport origin, not the bike center.
+    // A world point (x,y) appears on screen at (x-origin.x, -y+origin.y).
+    // Read-only: does not advance camera smoothing. With look-ahead disabled the
+    // tracked bike reference is at screen (320,240) in the 640x480 viewport.
+    [[nodiscard]] std::pair<int, int> bike_position() const noexcept;
 
 private:
     struct Impl;

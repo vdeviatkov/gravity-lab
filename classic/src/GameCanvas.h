@@ -23,6 +23,8 @@ private:
     void processTimers();
 
     Graphics* graphics = nullptr;
+    int mapCaptureWidth = 0;
+    int mapCaptureHeight = 0;
     int dx;
     int dy;
     int engineSpriteWidth;
@@ -102,6 +104,9 @@ public:
     void clearScreenWithWhite();
     void setColor(int red, int green, int blue);
     void drawGame(Graphics* g);
+    // Modified 2026-09-06: capture helpers, independent of camera/physics stepping.
+    void drawMap(Graphics* g, int left, int top, int mapWidth, int mapHeight, int cameraY);
+    bool bikeOnly = false;
     void method_161(int var1, bool mode);
     void method_163(int var1);
     void paint(Graphics* g);

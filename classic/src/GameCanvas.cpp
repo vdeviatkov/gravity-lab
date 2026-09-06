@@ -38,7 +38,8 @@ void GameCanvas::drawSprite(Graphics* g, int spriteNo, int x, int y)
     if (spritesImage) {
         g->setClip(x, y, spriteSizeX[spriteNo], spriteSizeY[spriteNo]);
         g->drawImage(spritesImage.get(), x - spriteOffsetX[spriteNo], y - spriteOffsetY[spriteNo], 20);
-        g->setClip(0, 0, getWidth(), getHeight());
+        g->setClip(0, 0, mapCaptureWidth ? mapCaptureWidth : getWidth(),
+                   mapCaptureHeight ? mapCaptureHeight : getHeight());
     }
 }
 
@@ -384,6 +385,21 @@ void GameCanvas::setColor(int red, int green, int blue)
     graphics->setColor(red, green, blue);
 }
 
+// Modified by Gravity Lab contributors, 2026-09-06: draw all level geometry into
+// the caller's render target, using original game lines and flag sprites.
+void GameCanvas::drawMap(Graphics* g, int left, int top, int mapWidth, int mapHeight, int cameraY)
+{
+    mapCaptureWidth = mapWidth;
+    mapCaptureHeight = mapHeight;
+    graphics = g;
+    graphics->setClip(0, 0, mapWidth, mapHeight);
+    dx = -left;
+    dy = top;
+    gamePhysics->renderMap(this, left, left + mapWidth, left + mapWidth / 2, cameraY);
+    mapCaptureWidth = mapCaptureHeight = 0;
+    graphics = nullptr;
+}
+
 void GameCanvas::drawGame(Graphics* g)
 {
     // synchronized (objectForSyncronization) {
@@ -417,7 +433,9 @@ void GameCanvas::drawGame(Graphics* g)
 
             gamePhysics->setMotoComponents();
             setViewPosition(-gamePhysics->getCamPosX() + field_178 + width / 2, gamePhysics->getCamPosY() + field_179 + height2 / 2);
-            gamePhysics->renderGame(this);
+            gamePhysics->renderGame(this, bikeOnly);
+            // Modified 2026-09-06: bike layer has no HUD or transient messages.
+            if (bikeOnly) { graphics = nullptr; return; }
             if (isDrawingTime) {
                 drawTime(micro->gameTimeMs / 10L);
             }

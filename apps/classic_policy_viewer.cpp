@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -21,6 +22,8 @@ struct Options {
     std::filesystem::path level_pack;
     std::filesystem::path policy;
     std::filesystem::path record_dir;
+    std::filesystem::path map_plate;
+    bool bike_only{false};
     std::uint32_t episodes{3};
     std::uint32_t hold_milliseconds{1'000};
     double fps{30.0};
@@ -66,6 +69,8 @@ Options parse(int argc, char** argv) {
         else if (arg == "--fps") options.fps = real(next(), arg);
         else if (arg == "--hold-ms") options.hold_milliseconds = integer<std::uint32_t>(next(), arg);
         else if (arg == "--validate-only") options.validate_only = true;
+        else if (arg == "--map-plate") options.map_plate = std::string(next());
+        else if (arg == "--bike-only") options.bike_only = true;
         else if (arg == "--record-dir") options.record_dir = std::string(next());
         else if (arg == "--help") {
             std::cout << "Usage: gravity_lab_classic_viewer --policy FILE [options]\n"
@@ -73,6 +78,8 @@ Options parse(int argc, char** argv) {
                          "  --group N --track N --league N\n"
                          "  --frame-skip N --max-steps N --episodes N --seed N\n"
                          "  --fps N --hold-ms N --validate-only\n"
+                         "  --map-plate FILE.png  render complete empty level, no policy required\n"
+                         "  --bike-only  capture isolated bike/rider on white, without map or HUD\n"
                          "  --record-dir DIR   save one PNG per rendered frame (frame_NNNNNN.png)\n"
                          "                     to DIR instead of/alongside displaying it -- pass\n"
                          "                     --fps 0 too to capture at full simulation speed\n"
@@ -84,7 +91,7 @@ Options parse(int argc, char** argv) {
             throw std::runtime_error("unknown option: " + std::string(arg));
         }
     }
-    if (options.policy.empty()) throw std::runtime_error("--policy is required");
+    if (options.policy.empty() && options.map_plate.empty()) throw std::runtime_error("--policy is required");
     if (options.episodes == 0) throw std::runtime_error("episodes must be positive");
     if (options.fps < 0.0 || options.fps > 1'000.0) throw std::runtime_error("fps must be in [0, 1000]");
     return options;
@@ -143,6 +150,14 @@ private:
 int main(int argc, char** argv) {
     try {
         const Options options = parse(argc, argv);
+        if (!options.map_plate.empty()) {
+            gravity_lab::classic::Environment environment(options.config, options.level_pack);
+            gravity_lab::classic::Renderer renderer(environment);
+            auto sidecar = options.map_plate;
+            sidecar.replace_extension(".json");
+            renderer.save_map_plate(options.map_plate.string(), sidecar.string(), environment);
+            return 0;
+        }
         const auto policy = gravity_lab::DenseQPolicy::load(options.policy);
         validate(policy);
         if (options.validate_only) {
@@ -157,24 +172,39 @@ int main(int argc, char** argv) {
         if (recording) std::filesystem::create_directories(options.record_dir);
         std::uint64_t frame_index = 0;
         gravity_lab::classic::Renderer* renderer_ptr = nullptr;
+        std::ofstream position_log;
+        if (recording) {
+            position_log.open(options.record_dir / "positions.csv");
+            position_log << "frame,episode,bike_x,bike_y\n";
+        }
+        std::uint32_t capture_episode = 0;
         auto capture = [&](const char* stem_prefix) {
             if (!recording) return;
+            const auto index = frame_index++;
             char name[64];
             std::snprintf(name, sizeof(name), "%s_%06llu.png", stem_prefix,
-                          static_cast<unsigned long long>(frame_index++));
+                          static_cast<unsigned long long>(index));
             if (!renderer_ptr->save_frame((options.record_dir / name).string())) {
                 std::cerr << "warning: failed to save frame " << name << '\n';
             }
+            // Read back the position render_frame() just drew at -- do not call
+            // environment.bike_position() here, it would double-drive the camera's look-ahead
+            // smoothing filter (render_frame() already advances it once per frame).
+            const auto [x, y] = renderer_ptr->bike_position();
+            position_log << index << ',' << capture_episode << ',' << x << ',' << y << '\n';
         };
 
         auto config = options.config;
         config.obstacle_ray_count = obstacle_ray_count_for(policy);
         gravity_lab::classic::Environment environment(config, options.level_pack);
+        if (recording) environment.set_camera_look_ahead(false);
         gravity_lab::classic::Renderer renderer(
             environment, "Gravity Lab - " + environment.track_name() + " - learned policy");
         renderer_ptr = &renderer;
+        renderer.set_bike_only(options.bike_only);
         FramePacer pacer(options.fps);
         for (std::uint32_t episode = 0; episode < options.episodes && renderer.open(); ++episode) {
+            capture_episode = episode;
             auto observation = environment.reset(options.config.seed + episode);
             std::uint64_t elapsed_milliseconds = 0;
             gravity_lab::classic::StepResult result;

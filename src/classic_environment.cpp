@@ -273,5 +273,33 @@ std::uint32_t Environment::track_count(std::uint32_t level_group) const {
     return static_cast<std::uint32_t>(impl_->loader.levelNames[level_group].size());
 }
 void* Environment::native_physics_handle() noexcept { return &impl_->physics; }
+std::pair<int, int> Environment::bike_position() const noexcept {
+    // getCamPosX/Y read a render-facing snapshot (GamePhysics::motoComponents) that the headless
+    // step loop never populates -- only the renderer's paint() does, via setMotoComponents(),
+    // before reading it. Refresh that snapshot here so this accessor works without a Renderer too.
+    impl_->physics.setMotoComponents();
+    return {impl_->physics.getCamPosX(), impl_->physics.getCamPosY()};
+}
+void Environment::set_camera_look_ahead(bool enabled) noexcept {
+    impl_->physics.setEnableLookAhead(enabled);
+}
+std::pair<std::pair<int, int>, std::pair<int, int>> Environment::track_start_finish() const {
+    const GameLevel& level = *impl_->loader.gameLevel;
+    return {{level.startPosX << 3 >> 16, level.startPosY << 3 >> 16},
+           {level.finishPosX << 3 >> 16, level.finishPosY << 3 >> 16}};
+}
+std::vector<std::pair<int, int>> Environment::track_polyline() const {
+    const GameLevel& level = *impl_->loader.gameLevel;
+    std::vector<std::pair<int, int>> points;
+    points.reserve(static_cast<std::size_t>(level.pointsCount));
+    for (int i = 0; i < level.pointsCount; ++i) {
+        // Level geometry uses half the physics fixed-point scale. Match the
+        // actual GameLevel draw calls (eight pixels per level unit).
+        const int x = static_cast<int>((static_cast<std::int64_t>(level.pointPositions[i][0]) * 8) >> 16);
+        const int y = static_cast<int>((static_cast<std::int64_t>(level.pointPositions[i][1]) * 8) >> 16);
+        points.emplace_back(x, y);
+    }
+    return points;
+}
 
 }  // namespace gravity_lab::classic

@@ -35,3 +35,7 @@ The classic executable remains the faithful human-play/reference implementation.
 `gravity_lab_classic_core` adapter now drives the same fixed-point `GamePhysics` and built-in level
 data without creating a window. The separate `gravity_lab_core` is still a lightweight RL sandbox;
 its environment ID and experiment results must not be mixed with the classic adapter.
+
+- 2026-09-06: added direct whole-map rendering with a fixed perspective and original
+  flag sprites, plus isolated bike capture in GameCanvas/GamePhysics. These rendering
+  options do not alter physics, observations, actions, or termination.

@@ -115,6 +115,21 @@ def _load_library() -> ctypes.CDLL:
     library.gdc_track_name.restype = ctypes.c_char_p
     library.gdc_track_count.argtypes = [ctypes.c_void_p, ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint32)]
     library.gdc_track_count.restype = ctypes.c_int
+    library.gdc_bike_position.argtypes = [
+        ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+    ]
+    library.gdc_bike_position.restype = ctypes.c_int
+    library.gdc_track_polyline_count.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint32)]
+    library.gdc_track_polyline_count.restype = ctypes.c_int
+    library.gdc_track_polyline_points.argtypes = [
+        ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.c_uint32,
+    ]
+    library.gdc_track_polyline_points.restype = ctypes.c_int
+    library.gdc_track_start_finish.argtypes = [
+        ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+    ]
+    library.gdc_track_start_finish.restype = ctypes.c_int
     library.gdc_last_error.argtypes = []
     library.gdc_last_error.restype = ctypes.c_char_p
     return library
@@ -180,6 +195,38 @@ class ClassicGravityEnv:
         if self._library.gdc_track_count(self._handle, level_group, ctypes.byref(result)) != 0:
             self._raise_native_error()
         return result.value
+
+    def bike_position(self) -> tuple[int, int]:
+        """The render camera's tracked bike position (fixed-point pixels). Not part of the
+        observation/training contract -- a diagnostic accessor for visualization tooling."""
+        x, y = ctypes.c_int(), ctypes.c_int()
+        if self._library.gdc_bike_position(self._handle, ctypes.byref(x), ctypes.byref(y)) != 0:
+            self._raise_native_error()
+        return x.value, y.value
+
+    def track_polyline(self) -> list[tuple[int, int]]:
+        """The current track's ground polyline vertices, in the same fixed-point pixel space as
+        bike_position(). Not part of the observation/training contract -- a diagnostic accessor for
+        visualization tooling: draw the track once from this instead of stitching it together from
+        rendered frames, which cannot introduce any cross-frame compositing artifact."""
+        count = ctypes.c_uint32()
+        if self._library.gdc_track_polyline_count(self._handle, ctypes.byref(count)) != 0:
+            self._raise_native_error()
+        xs = (ctypes.c_int * count.value)()
+        ys = (ctypes.c_int * count.value)()
+        if self._library.gdc_track_polyline_points(self._handle, xs, ys, count.value) != 0:
+            self._raise_native_error()
+        return list(zip(xs, ys))
+
+    def track_start_finish(self) -> tuple[tuple[int, int], tuple[int, int]]:
+        """The current track's (start, finish) flag positions, same coordinate space as
+        track_polyline() and bike_position()."""
+        sx, sy, fx, fy = (ctypes.c_int() for _ in range(4))
+        if self._library.gdc_track_start_finish(
+            self._handle, ctypes.byref(sx), ctypes.byref(sy), ctypes.byref(fx), ctypes.byref(fy)
+        ) != 0:
+            self._raise_native_error()
+        return (sx.value, sy.value), (fx.value, fy.value)
 
     def reset(self, seed: int | None = None) -> tuple[float, ...]:
         actual_seed = self.config.seed if seed is None else seed

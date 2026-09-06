@@ -123,5 +123,7 @@ public:
     int method_52();
     void method_53();
     void setMotoComponents();
-    void renderGame(GameCanvas* gameCanvas);
+    // Modified 2026-09-06: independent map/bike capture; simulation is unchanged.
+    void renderGame(GameCanvas* gameCanvas, bool bikeOnly = false);
+    void renderMap(GameCanvas* canvas, int left, int right, int cameraX, int cameraY);
 };

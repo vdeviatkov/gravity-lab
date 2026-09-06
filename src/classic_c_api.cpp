@@ -3,6 +3,7 @@
 #include "gravity_lab/classic_environment.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <exception>
 #include <filesystem>
 #include <stdexcept>
@@ -106,6 +107,47 @@ int gdc_track_count(gdc_env* env, uint32_t level_group, uint32_t* count) {
     return guard([&] {
         if (!env || !count) throw std::invalid_argument("gdc_track_count received null pointer");
         *count = env->value.track_count(level_group);
+    });
+}
+
+int gdc_bike_position(gdc_env* env, int* x, int* y) {
+    return guard([&] {
+        if (!env || !x || !y) throw std::invalid_argument("gdc_bike_position received null pointer");
+        const auto position = env->value.bike_position();
+        *x = position.first;
+        *y = position.second;
+    });
+}
+
+int gdc_track_polyline_count(gdc_env* env, uint32_t* count) {
+    return guard([&] {
+        if (!env || !count) throw std::invalid_argument("gdc_track_polyline_count received null pointer");
+        *count = static_cast<uint32_t>(env->value.track_polyline().size());
+    });
+}
+
+int gdc_track_polyline_points(gdc_env* env, int* xs, int* ys, uint32_t count) {
+    return guard([&] {
+        if (!env || !xs || !ys) throw std::invalid_argument("gdc_track_polyline_points received null pointer");
+        const auto points = env->value.track_polyline();
+        if (count != points.size()) throw std::invalid_argument("gdc_track_polyline_points count mismatch");
+        for (std::size_t i = 0; i < points.size(); ++i) {
+            xs[i] = points[i].first;
+            ys[i] = points[i].second;
+        }
+    });
+}
+
+int gdc_track_start_finish(gdc_env* env, int* start_x, int* start_y, int* finish_x, int* finish_y) {
+    return guard([&] {
+        if (!env || !start_x || !start_y || !finish_x || !finish_y) {
+            throw std::invalid_argument("gdc_track_start_finish received null pointer");
+        }
+        const auto [start, finish] = env->value.track_start_finish();
+        *start_x = start.first;
+        *start_y = start.second;
+        *finish_x = finish.first;
+        *finish_y = finish.second;
     });
 }
 

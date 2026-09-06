@@ -1186,7 +1186,20 @@ void GamePhysics::renderMotoAsLines(GameCanvas* gameCanvas, int var2, int var3, 
     gameCanvas->drawLineF16(var27, var28, var29, var30);
 }
 
-void GamePhysics::renderGame(GameCanvas* gameCanvas)
+// Modified by Gravity Lab contributors, 2026-09-06: render a complete static map
+// directly from level data, with a single fixed perspective and no bike shadow.
+void GamePhysics::renderMap(GameCanvas* canvas, int left, int right, int cameraX, int cameraY)
+{
+    levelLoader->setMinMaxX(left, right);
+    const bool shadows = LevelLoader::isEnabledShadows;
+    LevelLoader::isEnabledShadows = false;
+    levelLoader->renderLevel3D(canvas, cameraX * 16384, cameraY * 16384);
+    levelLoader->renderTrackNearestLine(canvas);
+    LevelLoader::isEnabledShadows = shadows;
+}
+
+// Modified 2026-09-06: omit both track passes for clean bike-only captures.
+void GamePhysics::renderGame(GameCanvas* gameCanvas, bool bikeOnly)
 {
     gameCanvas->clearScreenWithWhite();
     int xxF16 = motoComponents[3]->xF16 - motoComponents[4]->xF16;
@@ -1210,7 +1223,7 @@ void GamePhysics::renderGame(GameCanvas* gameCanvas)
         levelLoader->gameLevel->method_183(var7, var8);
     }
 
-    if (LevelLoader::isEnabledPerspective) {
+    if (!bikeOnly && LevelLoader::isEnabledPerspective) {
         levelLoader->renderLevel3D(gameCanvas, motoComponents[0]->xF16, motoComponents[0]->yF16);
     }
 
@@ -1239,5 +1252,5 @@ void GamePhysics::renderGame(GameCanvas* gameCanvas)
         renderMotoAsLines(gameCanvas, xxF16, yyF16, var5, xxF16);
     }
 
-    levelLoader->renderTrackNearestLine(gameCanvas);
+    if (!bikeOnly) levelLoader->renderTrackNearestLine(gameCanvas);
 }
