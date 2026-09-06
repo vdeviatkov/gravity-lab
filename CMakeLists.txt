@@ -32,9 +32,13 @@ if(GRAVITY_LAB_BUILD_CLASSIC)
     target_link_libraries(gravity_lab_classic PRIVATE gravity_lab_classic_core)
     set_target_properties(gravity_lab_classic PROPERTIES OUTPUT_NAME gravity_lab_classic PREFIX "")
 
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GRAVITY_LAB_SDL2_IMAGE REQUIRED IMPORTED_TARGET SDL2_image)
+
     add_library(gravity_lab_classic_renderer STATIC src/classic_renderer.cpp)
     target_include_directories(gravity_lab_classic_renderer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-    target_link_libraries(gravity_lab_classic_renderer PUBLIC gravity_lab_classic_core)
+    target_link_libraries(gravity_lab_classic_renderer PUBLIC gravity_lab_classic_core
+                          PkgConfig::GRAVITY_LAB_SDL2_IMAGE)
     target_compile_features(gravity_lab_classic_renderer PUBLIC cxx_std_20)
 
     add_executable(gravity_lab_classic_headless apps/classic_headless.cpp)

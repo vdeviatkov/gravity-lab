@@ -160,6 +160,18 @@ PyTorch `Linear` tensors, and C++ loads it without PyTorch, Python, NumPy, or an
   --max-steps 2000 --episodes 3 --seed 2000007
 ```
 
+`--record-dir DIR` saves one PNG per rendered frame to `DIR` (`frame_NNNNNN.png`) instead of
+just displaying it, for building a video after the fact. It works under `SDL_VIDEODRIVER=dummy`
+(no window/display needed) and composes with `--fps 0` to capture at full simulation speed rather
+than real-time-paced:
+
+```sh
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy ./build-classic-rl/gravity_lab_classic_viewer \
+  --policy artifacts/classic_policy.gdp --group 0 --track 0 --episodes 1 \
+  --fps 0 --hold-ms 0 --record-dir /tmp/frames
+ffmpeg -framerate 25 -i /tmp/frames/frame_%06d.png -c:v libx264 -pix_fmt yuv420p out.mp4
+```
+
 The viewer performs deterministic greedy argmax and renders the original track, bike sprites, HUD,
 and fixed-point `GamePhysics` state used by the headless environment. It never creates a second
 simulation. Escape or the window close button stops playback. See

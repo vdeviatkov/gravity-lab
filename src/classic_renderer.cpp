@@ -5,6 +5,10 @@
 #include "GameCanvas.h"
 #include "GamePhysics.h"
 #include "Micro.h"
+#include "lcdui/CanvasImpl.h"
+
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 
 #include <algorithm>
 #include <atomic>
@@ -91,5 +95,18 @@ void Renderer::show_message(std::string message, std::uint32_t duration_millisec
 }
 
 bool Renderer::open() const noexcept { return impl_->canvas->isOpen(); }
+
+bool Renderer::save_frame(const std::string& path) const {
+    SDL_Renderer* renderer = impl_->canvas->getCanvasImpl()->getRenderer();
+    const int width = impl_->canvas->getWidth();
+    const int height = impl_->canvas->getHeight();
+    SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(0, width, height, 32, SDL_PIXELFORMAT_RGBA32);
+    if (!surface) return false;
+    const bool read_ok = SDL_RenderReadPixels(renderer, nullptr, SDL_PIXELFORMAT_RGBA32,
+                                              surface->pixels, surface->pitch) == 0;
+    const bool saved = read_ok && IMG_SavePNG(surface, path.c_str()) == 0;
+    SDL_FreeSurface(surface);
+    return saved;
+}
 
 }  // namespace gravity_lab::classic

@@ -6,6 +6,7 @@
 #include <charconv>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
@@ -19,6 +20,7 @@ struct Options {
     gravity_lab::classic::Config config;
     std::filesystem::path level_pack;
     std::filesystem::path policy;
+    std::filesystem::path record_dir;
     std::uint32_t episodes{3};
     std::uint32_t hold_milliseconds{1'000};
     double fps{30.0};
@@ -64,12 +66,18 @@ Options parse(int argc, char** argv) {
         else if (arg == "--fps") options.fps = real(next(), arg);
         else if (arg == "--hold-ms") options.hold_milliseconds = integer<std::uint32_t>(next(), arg);
         else if (arg == "--validate-only") options.validate_only = true;
+        else if (arg == "--record-dir") options.record_dir = std::string(next());
         else if (arg == "--help") {
             std::cout << "Usage: gravity_lab_classic_viewer --policy FILE [options]\n"
                          "  --level-pack FILE  custom .mrg level pack\n"
                          "  --group N --track N --league N\n"
                          "  --frame-skip N --max-steps N --episodes N --seed N\n"
                          "  --fps N --hold-ms N --validate-only\n"
+                         "  --record-dir DIR   save one PNG per rendered frame (frame_NNNNNN.png)\n"
+                         "                     to DIR instead of/alongside displaying it -- pass\n"
+                         "                     --fps 0 too to capture at full simulation speed\n"
+                         "                     rather than real-time-paced. Works under\n"
+                         "                     SDL_VIDEODRIVER=dummy for headless capture.\n"
                          "Escape or the window close button stops playback.\n";
             std::exit(0);
         } else {
@@ -145,11 +153,26 @@ int main(int argc, char** argv) {
             return 0;
         }
 
+        const bool recording = !options.record_dir.empty();
+        if (recording) std::filesystem::create_directories(options.record_dir);
+        std::uint64_t frame_index = 0;
+        gravity_lab::classic::Renderer* renderer_ptr = nullptr;
+        auto capture = [&](const char* stem_prefix) {
+            if (!recording) return;
+            char name[64];
+            std::snprintf(name, sizeof(name), "%s_%06llu.png", stem_prefix,
+                          static_cast<unsigned long long>(frame_index++));
+            if (!renderer_ptr->save_frame((options.record_dir / name).string())) {
+                std::cerr << "warning: failed to save frame " << name << '\n';
+            }
+        };
+
         auto config = options.config;
         config.obstacle_ray_count = obstacle_ray_count_for(policy);
         gravity_lab::classic::Environment environment(config, options.level_pack);
         gravity_lab::classic::Renderer renderer(
             environment, "Gravity Lab - " + environment.track_name() + " - learned policy");
+        renderer_ptr = &renderer;
         FramePacer pacer(options.fps);
         for (std::uint32_t episode = 0; episode < options.episodes && renderer.open(); ++episode) {
             auto observation = environment.reset(options.config.seed + episode);
@@ -157,6 +180,7 @@ int main(int argc, char** argv) {
             gravity_lab::classic::StepResult result;
             renderer.show_message(environment.track_name(), 1'000);
             renderer.render_frame(elapsed_milliseconds);
+            capture("frame");
             while (!environment.done() && renderer.open()) {
                 const auto action = policy.action(
                     std::span<const double>(observation.data(), policy.observation_size()));
@@ -164,6 +188,7 @@ int main(int argc, char** argv) {
                 observation = result.observation;
                 elapsed_milliseconds += 20ULL * options.config.frame_skip;
                 renderer.render_frame(elapsed_milliseconds);
+                capture("frame");
                 pacer.wait();
             }
             if (!renderer.open()) break;
