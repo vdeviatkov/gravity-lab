@@ -10,6 +10,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <optional>
+#include <vector>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -21,6 +23,7 @@ struct Options {
     gravity_lab::classic::Config config;
     std::filesystem::path level_pack;
     std::filesystem::path policy;
+    std::filesystem::path actions;
     std::filesystem::path record_dir;
     std::filesystem::path map_plate;
     bool bike_only{false};
@@ -58,6 +61,7 @@ Options parse(int argc, char** argv) {
             return argv[i];
         };
         if (arg == "--policy") options.policy = std::string(next());
+        else if (arg == "--actions") options.actions = std::string(next());
         else if (arg == "--level-pack") options.level_pack = std::string(next());
         else if (arg == "--group") options.config.level_group = integer<std::uint32_t>(next(), arg);
         else if (arg == "--track") options.config.track = integer<std::uint32_t>(next(), arg);
@@ -74,6 +78,7 @@ Options parse(int argc, char** argv) {
         else if (arg == "--record-dir") options.record_dir = std::string(next());
         else if (arg == "--help") {
             std::cout << "Usage: gravity_lab_classic_viewer --policy FILE [options]\n"
+                         "  --actions FILE  replay recorded action bytes instead of a policy (one episode)\n"
                          "  --level-pack FILE  custom .mrg level pack\n"
                          "  --group N --track N --league N\n"
                          "  --frame-skip N --max-steps N --episodes N --seed N\n"
@@ -91,7 +96,10 @@ Options parse(int argc, char** argv) {
             throw std::runtime_error("unknown option: " + std::string(arg));
         }
     }
-    if (options.policy.empty() && options.map_plate.empty()) throw std::runtime_error("--policy is required");
+    if (options.policy.empty() && options.actions.empty() && options.map_plate.empty())
+        throw std::runtime_error("--policy, --actions, or --map-plate is required");
+    if (!options.actions.empty() && (!options.policy.empty() || options.episodes != 1))
+        throw std::runtime_error("--actions requires --episodes 1 and no --policy");
     if (options.episodes == 0) throw std::runtime_error("episodes must be positive");
     if (options.fps < 0.0 || options.fps > 1'000.0) throw std::runtime_error("fps must be in [0, 1000]");
     return options;
@@ -158,13 +166,27 @@ int main(int argc, char** argv) {
             renderer.save_map_plate(options.map_plate.string(), sidecar.string(), environment);
             return 0;
         }
-        const auto policy = gravity_lab::DenseQPolicy::load(options.policy);
-        validate(policy);
-        if (options.validate_only) {
-            std::cout << "valid policy environment=" << policy.environment_id()
-                      << " observations=" << policy.observation_size()
-                      << " actions=" << policy.action_count()
-                      << " layers=" << policy.layers().size() << '\n';
+        std::optional<gravity_lab::DenseQPolicy> policy;
+        std::vector<unsigned char> actions;
+        if (!options.actions.empty()) {
+            std::ifstream input(options.actions, std::ios::binary);
+            if (!input) throw std::runtime_error("cannot read actions file");
+            char byte;
+            while (input.get(byte)) {
+                const auto action = static_cast<unsigned char>(byte);
+                if (action >= gravity_lab::classic::kActionCount)
+                    throw std::runtime_error("invalid recorded action");
+                actions.push_back(action);
+            }
+        } else {
+            policy = gravity_lab::DenseQPolicy::load(options.policy);
+            validate(*policy);
+        }
+        if (options.validate_only && policy) {
+            std::cout << "valid policy environment=" << policy->environment_id()
+                      << " observations=" << policy->observation_size()
+                      << " actions=" << policy->action_count()
+                      << " layers=" << policy->layers().size() << '\n';
             return 0;
         }
 
@@ -195,7 +217,7 @@ int main(int argc, char** argv) {
         };
 
         auto config = options.config;
-        config.obstacle_ray_count = obstacle_ray_count_for(policy);
+        if (policy) config.obstacle_ray_count = obstacle_ray_count_for(*policy);
         gravity_lab::classic::Environment environment(config, options.level_pack);
         if (recording) environment.set_camera_look_ahead(false);
         gravity_lab::classic::Renderer renderer(
@@ -211,9 +233,12 @@ int main(int argc, char** argv) {
             renderer.show_message(environment.track_name(), 1'000);
             renderer.render_frame(elapsed_milliseconds);
             capture("frame");
-            while (!environment.done() && renderer.open()) {
-                const auto action = policy.action(
-                    std::span<const double>(observation.data(), policy.observation_size()));
+            std::size_t action_index = 0;
+            while (!environment.done() && renderer.open() &&
+                   (policy || action_index < actions.size())) {
+                const auto action = policy ? policy->action(
+                    std::span<const double>(observation.data(), policy->observation_size()))
+                    : actions.at(action_index++);
                 result = environment.step(static_cast<gravity_lab::classic::Action>(action));
                 observation = result.observation;
                 elapsed_milliseconds += 20ULL * options.config.frame_skip;
@@ -222,6 +247,8 @@ int main(int argc, char** argv) {
                 pacer.wait();
             }
             if (!renderer.open()) break;
+            if (!policy && action_index != actions.size())
+                throw std::runtime_error("recorded replay ended before all actions were consumed");
             const std::string outcome = result.finished ? (result.wheelie_finish ? "Wheelie!" : "Finished")
                 : result.crashed ? "Crashed" : "Time limit";
             renderer.show_message(outcome, options.hold_milliseconds);
