@@ -1,7 +1,7 @@
 # Contributor instructions
 
 - Preserve the boundary between deterministic simulation (`src/`, `include/`) and agents/rendering.
-- Do not add an RL framework or renderer dependency to `gravity_lab_core`.
+- Do not add an RL framework or renderer dependency to `gravity_lab_classic_core`.
 - Neural-network training belongs in a separate experiment repository. Keep this repository's
   portable policy evaluator dependency-free and framework-neutral.
 - Keep maps and experiment inputs text-based, small, versioned, and reviewable.
