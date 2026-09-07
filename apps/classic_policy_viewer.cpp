@@ -155,7 +155,7 @@ private:
 
 }  // namespace
 
-int main(int argc, char** argv) {
+extern "C" int main(int argc, char** argv) {
     try {
         const Options options = parse(argc, argv);
         if (!options.map_plate.empty()) {
